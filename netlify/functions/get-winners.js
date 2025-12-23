@@ -1,7 +1,6 @@
 // netlify/functions/get-winners.js
 // Robust + low-RPC-load payout detection for JackpotCoin
-// FIX: never replace a good cached winner list with empty winners due to RPC hiccups
-// FIX: scan enough signatures to actually find payouts (without exploding RPC calls)
+// Guarantees: if we have winners once, we NEVER return empty winners due to RPC hiccups.
 
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 
@@ -11,20 +10,20 @@ const RPC_ENDPOINTS = [
   "https://solana.public-rpc.com",
 ];
 
-const CACHE_MS = 8_000;
+// Server-side cache (reduces RPC load)
+const CACHE_MS = 12_000;
 
-// We can safely pull more signatures (cheap)...
-const SIG_LIMIT = 140;
+// Cheap call: signatures
+const SIG_LIMIT = 220;
 
-// ...but hard-cap getTransaction calls (expensive) to avoid 429s.
-const MAX_TX_FETCH = 60;
+// Expensive calls: getTransaction
+const MAX_TX_FETCH = 90;
 
 const MAX_WINNERS = 20;
 const CONCURRENCY = 4;
 
-// If we have a good cached list, and the new run finds 0 winners,
-// keep old list for this long before we believe "no winners".
-const STALE_OK_MS = 5 * 60 * 1000;
+// If new run finds 0 winners but we had winners recently, keep last list
+const STALE_OK_MS = 10 * 60 * 1000;
 
 let cache = { ts: 0, data: null };
 
@@ -35,7 +34,7 @@ async function fetchJsonWithTimeout(url, opts, timeoutMs = 9000) {
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { ...opts, signal: ctrl.signal });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, json };
   } finally {
     clearTimeout(t);
@@ -75,7 +74,6 @@ async function rpc(method, params) {
       return await rpcTry(ep, method, params);
     } catch (e) {
       lastErr = e;
-      continue;
     }
   }
   throw lastErr || new Error("All RPC endpoints failed");
@@ -123,14 +121,14 @@ function median(nums) {
   return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
 }
 
-function buildResponse({ winners, cadenceSeconds }) {
+function buildResponse({ winners, cadenceSeconds, stale = false, error = null, message = null }) {
   const lastPayoutUTC = winners[0]?.whenUTC || null;
 
   const nextDrawUTC = lastPayoutUTC
     ? new Date(Date.parse(lastPayoutUTC) + cadenceSeconds * 1000).toISOString()
     : null;
 
-  return {
+  const out = {
     updatedUTC: new Date().toISOString(),
     payoutWallet: PAYOUT_WALLET,
     payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
@@ -138,7 +136,13 @@ function buildResponse({ winners, cadenceSeconds }) {
     nextDrawUTC,
     cadenceSeconds,
     winners: winners.slice(0, MAX_WINNERS),
+    stale: !!stale,
   };
+
+  if (error) out.error = error;
+  if (message) out.message = message;
+
+  return out;
 }
 
 exports.handler = async (event) => {
@@ -154,8 +158,10 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: "" };
   }
 
+  const now = Date.now();
+
   try {
-    const now = Date.now();
+    // short server cache to reduce RPC load
     if (cache.data && (now - cache.ts) < CACHE_MS) {
       return { statusCode: 200, headers, body: JSON.stringify(cache.data) };
     }
@@ -169,7 +175,6 @@ exports.handler = async (event) => {
       .filter(s => s && !s.err && s.signature)
       .map(s => s.signature);
 
-    // Fetch up to MAX_TX_FETCH transactions (expensive)
     const toFetch = signatures.slice(0, MAX_TX_FETCH);
 
     const txs = await mapLimit(toFetch, CONCURRENCY, async (sig) => {
@@ -197,7 +202,9 @@ exports.handler = async (event) => {
 
           if (source === PAYOUT_WALLET && destination && destination !== PAYOUT_WALLET) {
             const solAmount = lamports / 1e9;
-            if (solAmount >= 0.001 && solAmount <= 1000) {
+
+            // allow tiny payouts too (your screenshot had <0.01 sometimes)
+            if (solAmount >= 0.0001 && solAmount <= 1000) {
               winners.push({
                 wallet: destination,
                 amountSOL: Number(solAmount.toFixed(9)),
@@ -215,7 +222,7 @@ exports.handler = async (event) => {
 
     winners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
 
-    // derive cadence
+    // derive cadence from payout gaps
     let cadenceSeconds = null;
     if (winners.length >= 3) {
       const times = winners
@@ -233,56 +240,49 @@ exports.handler = async (event) => {
     }
     if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
-    // ✅ CRITICAL FIX:
-    // If new result is empty BUT we had good winners recently, return cached winners instead
-    // (prevents “appears then disappears”)
     const hadGoodCache = cache.data?.winners?.length > 0;
     const cacheFreshEnough = (now - (cache.ts || 0)) < STALE_OK_MS;
 
+    // ✅ never return empty winners if we already had winners recently
     if (winners.length === 0 && hadGoodCache && cacheFreshEnough) {
-      const safe = {
-        ...cache.data,
-        updatedUTC: new Date().toISOString(),
+      const safe = buildResponse({
+        winners: cache.data.winners,
+        cadenceSeconds: cache.data.cadenceSeconds || cadenceSeconds,
         stale: true,
-        note: "Using last known winners (RPC indexing/rate-limit)",
-      };
-      // do not overwrite cache with empty
+        error: "feed_unstable",
+        message: "RPC indexing/rate-limit — serving last known winners",
+      });
+      cache = { ts: now, data: safe };
       return { statusCode: 200, headers, body: JSON.stringify(safe) };
     }
 
     const data = buildResponse({ winners, cadenceSeconds });
-
-    // Only cache if it looks sane (either we have winners, or we truly have no history yet)
     cache = { ts: now, data };
 
     return { statusCode: 200, headers, body: JSON.stringify(data) };
   } catch (e) {
-    // ✅ also do not blow away cache on errors
+    // ✅ if error, serve last known winners (stable UI)
     if (cache.data?.winners?.length) {
-      const safe = {
-        ...cache.data,
-        updatedUTC: new Date().toISOString(),
+      const safe = buildResponse({
+        winners: cache.data.winners,
+        cadenceSeconds: cache.data.cadenceSeconds || (15 * 60),
         stale: true,
-        error: "feed_unavailable",
+        error: "feed_unstable",
         message: String(e?.message || e),
-      };
+      });
+      cache = { ts: now, data: safe };
       return { statusCode: 200, headers, body: JSON.stringify(safe) };
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        updatedUTC: new Date().toISOString(),
-        payoutWallet: PAYOUT_WALLET,
-        payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
-        lastPayoutUTC: null,
-        nextDrawUTC: null,
-        cadenceSeconds: 15 * 60,
-        winners: [],
-        error: "feed_unavailable",
-        message: String(e?.message || e),
-      }),
-    };
+    const empty = buildResponse({
+      winners: [],
+      cadenceSeconds: 15 * 60,
+      stale: true,
+      error: "feed_unavailable",
+      message: String(e?.message || e),
+    });
+    cache = { ts: now, data: empty };
+
+    return { statusCode: 200, headers, body: JSON.stringify(empty) };
   }
 };
