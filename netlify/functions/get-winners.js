@@ -1,13 +1,16 @@
 // netlify/functions/get-winners.js
-// Fast winner detection from System Program transfers
-// + derives observed cadence from recent payout gaps (median)
+// Winner detection from System Program SOL transfers
+// + derives observed cadence (median gaps)
+// + returns deeper history so ALL browsers see it (no localStorage needed)
+// + disables caching so payouts show faster
 
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 const RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";
 
-const CACHE_MS = 8_000;          // ✅ faster “freshness”
-const SIG_LIMIT = 80;            // keep small to avoid timeouts
-const MAX_WINNERS = 20;
+// Tune these:
+const CACHE_MS = 8_000;      // small in-function cache to protect RPC
+const SIG_LIMIT = 300;       // deeper history so new browsers still see winners
+const MAX_WINNERS = 80;      // how many winners you return to the site
 const CONCURRENCY = 8;
 
 let cache = { ts: 0, data: null };
@@ -27,7 +30,7 @@ function isoFromBlockTime(bt) {
   return bt ? new Date(bt * 1000).toISOString() : null;
 }
 
-function extractTransfers(tx) {
+function extractAllInstructions(tx) {
   // Top-level + inner instructions
   const out = [];
   const msgIxs = tx?.transaction?.message?.instructions || [];
@@ -72,7 +75,9 @@ exports.handler = async (event) => {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "public, max-age=5", // ✅ shorter
+
+    // IMPORTANT: reduce caching so payouts show quickly
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
   };
 
   if (event.httpMethod === "OPTIONS") {
@@ -108,9 +113,9 @@ exports.handler = async (event) => {
       if (!item?.tx || item.tx?.meta?.err) continue;
 
       const whenUTC = isoFromBlockTime(item.tx.blockTime) || null;
-      const allIxs = extractTransfers(item.tx);
+      const ixs = extractAllInstructions(item.tx);
 
-      for (const ix of allIxs) {
+      for (const ix of ixs) {
         if (ix?.program === "system" && ix?.parsed?.type === "transfer") {
           const info = ix.parsed.info || {};
           const source = info.source;
@@ -120,7 +125,7 @@ exports.handler = async (event) => {
           if (source === PAYOUT_WALLET && destination && destination !== PAYOUT_WALLET) {
             const solAmount = lamports / 1e9;
 
-            // payout range filter
+            // Filter to "winner-looking" payouts
             if (solAmount >= 0.01 && solAmount <= 1000) {
               winners.push({
                 wallet: destination,
@@ -133,25 +138,23 @@ exports.handler = async (event) => {
           }
         }
       }
-
-      if (winners.length >= MAX_WINNERS) break;
     }
 
+    // newest first
     winners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
 
     const lastPayoutUTC = winners[0]?.whenUTC || null;
 
-    // --- observed cadence (median of recent gaps)
+    // Observed cadence from recent payout gaps (median)
     let cadenceSeconds = null;
-
-    if (winners.length >= 3) {
+    if (winners.length >= 4) {
       const times = winners
         .map(w => Date.parse(w.whenUTC))
         .filter(Number.isFinite)
-        .sort((a, b) => b - a);
+        .sort((a, b) => b - a); // newest -> older
 
       const gaps = [];
-      for (let i = 0; i < Math.min(times.length - 1, 12); i++) {
+      for (let i = 0; i < Math.min(times.length - 1, 20); i++) {
         const gapSec = Math.round((times[i] - times[i + 1]) / 1000);
         if (gapSec >= 120 && gapSec <= 3600) gaps.push(gapSec);
       }
@@ -160,6 +163,7 @@ exports.handler = async (event) => {
       if (med) cadenceSeconds = Math.round(med);
     }
 
+    // fallback if inference fails
     if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
     const nextDrawUTC = lastPayoutUTC
