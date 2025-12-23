@@ -1,632 +1,426 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jackpot Token (JACKPOT)</title>
-  <meta name="description" content="Jackpot Token — 10-minute draws, on-chain verified winners." />
-  <meta name="theme-color" content="#070A0F" />
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JACKPOT Token - Transparent SOL Payouts on Solana</title>
+  <meta name="description" content="JACKPOT token distributes SOL payouts every 10 minutes. All transactions are verifiable on-chain via Solscan.">
+  
   <style>
-    :root{
-      --bg:#070A0F;
-      --card:rgba(255,255,255,.035);
-      --stroke:rgba(255,255,255,.085);
-      --text:#EAF1FB;
-      --muted:#9AA4B2;
-      --accent:#34D399;      /* Solana-ish green */
-      --accent2:#7C3AED;     /* subtle purple */
-      --shadow:0 20px 60px rgba(0,0,0,.55);
-      --radius:18px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      color:var(--text);
-      background:
-        radial-gradient(900px 420px at 15% -10%, rgba(52,211,153,.18), transparent 60%),
-        radial-gradient(800px 420px at 85% 0%, rgba(124,58,237,.18), transparent 55%),
-        var(--bg);
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    .wrap{
-      max-width: 1040px;
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      line-height: 1.6;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
       margin: 0 auto;
-      padding: 18px 16px 64px;
     }
 
-    /* Top bar */
-    header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding: 10px 0 16px;
-    }
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width: 0;
-    }
-    .logo{
-      width:44px;height:44px;border-radius:14px;
-      background: linear-gradient(135deg, rgba(52,211,153,.22), rgba(124,58,237,.22));
-      border:1px solid var(--stroke);
-      box-shadow: var(--shadow);
-      flex: 0 0 auto;
-    }
-    .brandText{ min-width:0 }
-    .brandText h1{
-      margin:0;
-      font-size: 16px;
-      letter-spacing:.3px;
-      line-height: 1.1;
-    }
-    .brandText p{
-      margin:4px 0 0;
-      color: var(--muted);
-      font-size: 12.5px;
-      line-height: 1.2;
-      white-space: nowrap;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      max-width: 62vw;
+    header {
+      text-align: center;
+      padding: 40px 20px;
+      border-bottom: 1px solid #1a1a24;
+      margin-bottom: 40px;
     }
 
-    .ctaRow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-    .btn{
-      border:1px solid var(--stroke);
-      background: rgba(255,255,255,.03);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 14px;
-      text-decoration:none;
-      font-size: 13px;
-      line-height: 1;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      transition: transform .08s ease, background .2s ease, border-color .2s ease;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn:hover{ background: rgba(255,255,255,.06); }
-    .btnPrimary{
-      background: linear-gradient(135deg, rgba(52,211,153,.20), rgba(124,58,237,.16));
-      border-color: rgba(255,255,255,.10);
+    h1 {
+      font-size: 2.5rem;
+      color: #ffffff;
+      margin-bottom: 10px;
+      font-weight: 700;
     }
 
-    /* Layout */
-    .grid{
-      display:grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap:14px;
+    .subtitle {
+      color: #888;
+      font-size: 1rem;
+      margin-bottom: 20px;
+    }
+
+    .ticker {
+      display: inline-block;
+      background: #1a1a24;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      color: #00d4aa;
+      font-size: 0.9rem;
       margin-top: 10px;
     }
-    @media (max-width: 900px){
-      .grid{ grid-template-columns: 1fr; }
-      .ctaRow{ justify-content:flex-start; }
+
+    .countdown-section {
+      background: linear-gradient(135deg, #1a1a24 0%, #0f0f18 100%);
+      border: 1px solid #2a2a34;
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      margin-bottom: 40px;
     }
 
-    .card{
-      border:1px solid var(--stroke);
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 18px;
-      overflow:hidden;
-      position:relative;
-    }
-    .cardGlow:before{
-      content:"";
-      position:absolute;
-      inset:-2px;
-      background:
-        radial-gradient(600px 240px at 18% 0%, rgba(52,211,153,.22), transparent 60%),
-        radial-gradient(600px 240px at 82% 0%, rgba(124,58,237,.18), transparent 60%);
-      pointer-events:none;
-      filter:saturate(1.1);
-    }
-    .cardGlow > *{ position: relative; }
-
-    .kicker{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      border:1px solid var(--stroke);
-      background: rgba(0,0,0,.20);
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 10px;
-    }
-    .dot{
-      width:8px;height:8px;border-radius:999px;
-      background: var(--accent);
-      box-shadow: 0 0 18px rgba(52,211,153,.55);
-    }
-
-    h2{ margin:0 0 6px; font-size: 26px; letter-spacing:.2px; }
-    .sub{
-      margin:0 0 16px;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    /* Countdown */
-    .countWrap{
-      display:grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap:10px;
-    }
-    @media (max-width: 520px){
-      .countWrap{ grid-template-columns: repeat(2, 1fr); }
-    }
-    .timeBox{
-      border:1px solid var(--stroke);
-      background: rgba(0,0,0,.22);
-      border-radius: 16px;
-      padding: 12px 12px 10px;
-      min-height: 74px;
-    }
-    .timeLabel{
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-      letter-spacing:.2px;
-    }
-    .timeVal{
-      font-family: var(--mono);
-      font-weight: 800;
-      font-size: 22px;
+    .countdown-label {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 15px;
+      text-transform: uppercase;
       letter-spacing: 1px;
     }
-    .timeValAccent{ color: var(--accent); }
 
-    /* Address + copy */
-    .rowTitle{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin: 16px 0 10px;
+    .countdown-timer {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #00d4aa;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 2px;
     }
-    .rowTitle .label{
-      font-size: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .8px;
+
+    .winners-section {
+      margin-bottom: 40px;
     }
-    .pill{
-      font-size: 12px;
-      color: var(--muted);
-      border:1px solid var(--stroke);
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.02);
-      white-space: nowrap;
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #ffffff;
+      font-weight: 600;
     }
-    .addr{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      border:1px solid var(--stroke);
-      background: rgba(0,0,0,.25);
-      border-radius: 16px;
-      padding: 10px 10px 10px 12px;
+
+    .winner-card {
+      background: #1a1a24;
+      border: 1px solid #2a2a34;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
-    .addr code{
-      font-family: var(--mono);
-      font-size: 12.5px;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+
+    .winner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-    .miniBtn{
-      border:1px solid var(--stroke);
-      background: rgba(255,255,255,.03);
-      color: var(--text);
+
+    .winner-wallet {
+      font-family: 'Courier New', monospace;
+      color: #00d4aa;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+
+    .winner-amount {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .winner-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #2a2a34;
+    }
+
+    .winner-time {
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    .winner-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-verify {
+      background: #2a2a34;
+      color: #00d4aa;
+    }
+
+    .btn-verify:hover {
+      background: #3a3a44;
+    }
+
+    .btn-share {
+      background: #1da1f2;
+      color: #ffffff;
+    }
+
+    .btn-share:hover {
+      background: #1a8cd8;
+    }
+
+    .trust-section {
+      background: #1a1a24;
+      border: 1px solid #2a2a34;
       border-radius: 12px;
-      padding: 9px 10px;
-      font-size: 12px;
-      cursor:pointer;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
+      padding: 30px;
+      margin-bottom: 40px;
     }
-    .miniBtn:active{ transform: translateY(1px); }
 
-    /* Trust section */
-    .trust{
-      margin-top: 14px;
-      border:1px solid var(--stroke);
-      background: rgba(0,0,0,.18);
-      border-radius: 16px;
-      padding: 12px;
+    .trust-section h2 {
+      margin-bottom: 15px;
     }
-    .trust h3{
-      margin:0 0 8px;
-      font-size: 13px;
-      letter-spacing:.3px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .trust ul{
-      margin:0;
-      padding-left: 18px;
-      color: var(--text);
-    }
-    .trust li{
-      margin: 6px 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-    .trust b{ color: var(--text); font-weight: 700; }
 
-    /* Winners */
-    .sectionHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom: 10px;
+    .trust-section p {
+      color: #b0b0b0;
+      margin-bottom: 12px;
+      line-height: 1.8;
     }
-    .sectionHead h3{
-      margin:0;
-      font-size: 12px;
-      letter-spacing:.9px;
-      text-transform: uppercase;
-      color: var(--muted);
+
+    .trust-section ul {
+      list-style: none;
+      margin-top: 15px;
     }
-    .winners{
-      list-style:none;
-      margin:0;
-      padding:0;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
+
+    .trust-section li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+      color: #b0b0b0;
     }
-    .win{
-      border:1px solid var(--stroke);
-      background: rgba(0,0,0,.18);
-      border-radius: 16px;
-      padding: 12px;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:10px;
+
+    .trust-section li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #00d4aa;
+      font-weight: 700;
     }
-    .winLeft{ min-width:0 }
-    .who{
-      font-family: var(--mono);
-      font-size: 13px;
-      white-space: nowrap;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      max-width: 62vw;
+
+    .links-section {
+      text-align: center;
+      padding: 30px;
+      border-top: 1px solid #1a1a24;
     }
-    .meta{
-      margin-top: 6px;
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.35;
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      align-items:center;
+
+    .links-section a {
+      display: inline-block;
+      margin: 10px;
+      padding: 12px 24px;
+      background: #2a2a34;
+      color: #00d4aa;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: all 0.2s;
     }
-    a{
-      color: var(--text);
-      text-decoration:none;
-      border-bottom: 1px solid rgba(255,255,255,.18);
+
+    .links-section a:hover {
+      background: #3a3a44;
     }
-    a:hover{ border-bottom-color: rgba(255,255,255,.45); }
-    .amt{
-      font-family: var(--mono);
-      font-weight: 900;
-      font-size: 13px;
-      color: var(--accent);
-      white-space: nowrap;
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
     }
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      border:1px solid var(--stroke);
-      background: rgba(255,255,255,.02);
-      color: var(--muted);
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      white-space: nowrap;
+
+    .error {
+      background: #2a1a1a;
+      border: 1px solid #4a2a2a;
+      color: #ff6b6b;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 20px;
     }
-    .badge strong{ color: var(--text); font-weight: 700; }
-    .foot{
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.55;
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .countdown-timer {
+        font-size: 2rem;
+      }
+
+      .winner-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .winner-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .winner-actions {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        text-align: center;
+      }
     }
   </style>
 </head>
-
 <body>
-  <div class="wrap">
+  <div class="container">
     <header>
-      <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
-        <div class="brandText">
-          <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
-          <p>10-minute cadence • SOL payouts • On-chain verification</p>
-        </div>
-      </div>
-
-      <div class="ctaRow">
-        <a class="btn" href="https://x.com/i/communities/2003432724514676762" target="_blank" rel="noopener">
-          Community
-          <span aria-hidden="true">↗</span>
-        </a>
-        <a class="btn btnPrimary" href="https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2" target="_blank" rel="noopener">
-          Trade on Pump v2
-          <span aria-hidden="true">↗</span>
-        </a>
-      </div>
+      <h1>JACKPOT TOKEN</h1>
+      <p class="subtitle">Transparent SOL Payouts on Solana</p>
+      <span class="ticker">$JACKPOT</span>
     </header>
 
-    <div class="grid">
+    <div class="countdown-section">
+      <div class="countdown-label">Next Winner Selection In</div>
+      <div class="countdown-timer" id="countdown">--:--</div>
+    </div>
 
-      <!-- LEFT: Countdown + Trust -->
-      <section class="card cardGlow">
-        <div class="kicker"><span class="dot"></span> Provably paid • Verifiable on Solscan</div>
-        <h2>Next Jackpot Draw</h2>
-        <p class="sub">
-          Draws run on a fixed <b>10-minute UTC cadence</b>. Recent winners below include direct links to on-chain proof.
-        </p>
+    <div id="error-container"></div>
 
-        <div class="countWrap" role="group" aria-label="Countdown timer">
-          <div class="timeBox">
-            <div class="timeLabel">Minutes</div>
-            <div class="timeVal" id="cdMin">--</div>
-          </div>
-          <div class="timeBox">
-            <div class="timeLabel">Seconds</div>
-            <div class="timeVal timeValAccent" id="cdSec">--</div>
-          </div>
-          <div class="timeBox">
-            <div class="timeLabel">Next draw (UTC)</div>
-            <div class="timeVal" style="font-size:14px; letter-spacing:.2px" id="nextUtc">--</div>
-          </div>
-          <div class="timeBox">
-            <div class="timeLabel">Cadence</div>
-            <div class="timeVal" style="font-size:14px; letter-spacing:.2px">Every 10 min</div>
-          </div>
-        </div>
+    <div class="winners-section">
+      <h2>Recent Winners</h2>
+      <div id="winners-list">
+        <div class="loading">Loading winner data...</div>
+      </div>
+    </div>
 
-        <div class="rowTitle">
-          <div class="label">Contract address</div>
-          <div class="pill">Network: Solana</div>
-        </div>
+    <div class="trust-section">
+      <h2>Trust & Transparency</h2>
+      <p>Every payout is executed directly on the Solana blockchain using standard System Program transfers. No smart contract complexity, no hidden mechanisms.</p>
+      <ul>
+        <li>All payouts are publicly verifiable on Solscan</li>
+        <li>No wallet connection required on this website</li>
+        <li>No custody of your funds</li>
+        <li>Winners selected every 10 minutes (UTC)</li>
+        <li>Direct SOL transfers to winner addresses</li>
+      </ul>
+      <p style="margin-top: 20px;">
+        <a href="https://solscan.io/account/66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw" target="_blank" class="btn btn-verify">View Payout Wallet on Solscan</a>
+      </p>
+    </div>
 
-        <div class="addr">
-          <code id="contractAddr">7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2</code>
-          <button class="miniBtn" id="copyBtn" type="button">Copy</button>
-        </div>
-
-        <div class="trust" aria-label="Trust and transparency">
-          <h3>Trust & transparency</h3>
-          <ul>
-            <li><b>On-chain payouts:</b> winners are paid directly on Solana.</li>
-            <li><b>System Program transfers:</b> standard native SOL transfers (no hidden custody layer).</li>
-            <li><b>Independent verification:</b> each winner row includes a Solscan proof link.</li>
-            <li><b>Read-only site:</b> no wallet connect, no permissions, no approvals.</li>
-          </ul>
-        </div>
-
-        <div class="foot">
-          Always verify the contract address and transactions via official links.
-        </div>
-      </section>
-
-      <!-- RIGHT: Winners -->
-      <aside class="card">
-        <div class="sectionHead">
-          <h3>Recent winners</h3>
-          <span class="badge" id="updatedBadge"><strong>Updated</strong>: --</span>
-        </div>
-
-        <ul class="winners" id="winnersList"></ul>
-
-        <div class="foot">
-          Each entry shows the winner wallet, payout amount, UTC time, and direct proof on Solscan.
-        </div>
-      </aside>
-
+    <div class="links-section">
+      <a href="https://x.com/i/communities/2003432724514676762" target="_blank">Join Community (𝕏)</a>
+      <a href="https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2" target="_blank">Trade JACKPOT</a>
     </div>
   </div>
 
   <script>
-    // =========================
-    // CONFIG
-    // =========================
-    const CONFIG = {
-      cadenceSeconds: 10 * 60, // 10 minutes
-      winnersJsonPath: "/.netlify/functions/winners",
-      solscanTxBase: "https://solscan.io/tx/",
-      solscanAccountBase: "https://solscan.io/account/",
-      contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
-    };
+    // UTC-based countdown timer (10-minute fixed cadence)
+    function updateCountdown() {
+      const now = new Date();
+      const nowUtc = Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        now.getUTCMinutes(),
+        now.getUTCSeconds(),
+        now.getUTCMilliseconds()
+      );
 
-    // =========================
-    // COUNTDOWN (UTC, fixed cadence)
-    // Next draw = next multiple of cadenceSeconds since Unix epoch (UTC).
-    // This is stable, deterministic, and does not drift.
-    // =========================
-    function pad2(n){ return String(n).padStart(2, "0"); }
+      // Calculate next 10-minute mark
+      const currentMinute = now.getUTCMinutes();
+      const currentSecond = now.getUTCSeconds();
+      const minutesMod = currentMinute % 10;
+      const minutesUntilNext = 10 - minutesMod;
+      const secondsUntilNext = (minutesUntilNext * 60) - currentSecond;
 
-    function nextCadenceEpochMs(nowMs){
-      const cadenceMs = CONFIG.cadenceSeconds * 1000;
-      return Math.ceil(nowMs / cadenceMs) * cadenceMs;
+      const minutes = Math.floor(secondsUntilNext / 60);
+      const seconds = secondsUntilNext % 60;
+
+      const display = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      document.getElementById('countdown').textContent = display;
     }
 
-    function formatUtcHM(ms){
-      const d = new Date(ms);
-      const hh = pad2(d.getUTCHours());
-      const mm = pad2(d.getUTCMinutes());
-      return `${hh}:${mm} UTC`;
-    }
+    // Update countdown every second
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
 
-    function tickCountdown(){
-      const now = Date.now();
-      const next = nextCadenceEpochMs(now);
-      const diff = Math.max(0, next - now);
+    // Fetch and display winners
+    async function loadWinners() {
+      const errorContainer = document.getElementById('error-container');
+      const winnersList = document.getElementById('winners-list');
 
-      const totalSec = Math.floor(diff / 1000);
-      const minutes = Math.floor(totalSec / 60);
-      const seconds = totalSec % 60;
+      try {
+        const response = await fetch('/.netlify/functions/get-winners');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-      document.getElementById("cdMin").textContent = pad2(minutes);
-      document.getElementById("cdSec").textContent = pad2(seconds);
-      document.getElementById("nextUtc").textContent = formatUtcHM(next);
-    }
+        const data = await response.json();
 
-    // Update smoothly, but without heavy animation.
-    setInterval(tickCountdown, 250);
-    tickCountdown();
-
-    // =========================
-    // COPY CONTRACT
-    // =========================
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const btn = document.getElementById("copyBtn");
-      try{
-        await navigator.clipboard.writeText(CONFIG.contract);
-        const old = btn.textContent;
-        btn.textContent = "Copied";
-        setTimeout(() => btn.textContent = old, 900);
-      }catch(e){
-        alert("Copy failed. Please copy manually.");
-      }
-    });
-
-    // =========================
-    // WINNERS
-    // winners.json format:
-    // { updatedUTC: "...", winners: [{wallet, amountSOL, whenUTC, tx}] }
-    // =========================
-    function shortAddr(a){
-      if(!a || a.length < 12) return a || "";
-      return a.slice(0, 6) + "…" + a.slice(-4);
-    }
-
-    function utcString(iso){
-      try { return new Date(iso).toUTCString(); } catch { return ""; }
-    }
-
-    function setUpdatedBadge(iso){
-      const el = document.getElementById("updatedBadge");
-      if(!iso){ el.innerHTML = "<strong>Updated</strong>: —"; return; }
-      el.innerHTML = `<strong>Updated</strong>: ${utcString(iso)}`;
-    }
-
-    function winnerItem(w){
-      const walletFull = (w.wallet || "").trim();
-      const tx = (w.tx || "").trim();
-
-      const walletShort = shortAddr(walletFull);
-      const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
-      const solscanTx = tx ? (CONFIG.solscanTxBase + tx) : null;
-
-      const amount = typeof w.amountSOL === "number"
-        ? `${w.amountSOL.toFixed(4)} SOL`
-        : (w.amountSOL || "—");
-
-      const when = w.whenUTC ? utcString(w.whenUTC) : "";
-
-      const li = document.createElement("li");
-      li.className = "win";
-
-      li.innerHTML = `
-        <div class="winLeft">
-          <div class="who" title="${walletFull}">
-            ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
-          </div>
-          <div class="meta">
-            <span>${when}</span>
-            ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
-          </div>
-        </div>
-        <div class="amt">${amount}</div>
-      `;
-
-      return li;
-    }
-
-    async function loadWinners(){
-      const list = document.getElementById("winnersList");
-      try{
-        const res = await fetch(CONFIG.winnersJsonPath, { cache: "no-store" });
-        if(!res.ok) throw new Error("Failed to fetch winners.json");
-        const data = await res.json();
-
-        setUpdatedBadge(data.updatedUTC);
-
-        const winners = Array.isArray(data.winners) ? data.winners : [];
-        list.innerHTML = "";
-
-        if(winners.length === 0){
-          const empty = document.createElement("li");
-          empty.className = "win";
-          empty.innerHTML = `
-            <div class="winLeft">
-              <div class="who">No winners posted yet</div>
-              <div class="meta">Add entries to winners.json to publish provable payouts.</div>
-            </div>
-            <div class="amt">—</div>
-          `;
-          list.appendChild(empty);
+        if (!data.winners || data.winners.length === 0) {
+          winnersList.innerHTML = '<p class="loading">No winners found yet. Check back soon!</p>';
           return;
         }
 
-        // Latest first
-        winners
-          .slice()
-          .sort((a,b) => (new Date(b.whenUTC||0) - new Date(a.whenUTC||0)))
-          .slice(0, 10)
-          .forEach(w => list.appendChild(winnerItem(w)));
+        winnersList.innerHTML = data.winners.map(winner => {
+          const date = new Date(winner.timestamp);
+          const dateStr = date.toUTCString();
+          const shortWallet = `${winner.recipient.slice(0, 6)}...${winner.recipient.slice(-4)}`;
+          
+          // Generate X share text
+          const shareText = encodeURIComponent(
+            `🎉 Jackpot winner paid on Solana\n💰 ${winner.amount.toFixed(4)} SOL\n🔍 On-chain proof: ${winner.solscanUrl}\n\nJoin the community:\nhttps://x.com/i/communities/2003432724514676762\n\nTrade JACKPOT:\nhttps://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2`
+          );
+          
+          const shareUrl = `https://twitter.com/intent/tweet?text=${shareText}`;
 
-      }catch(e){
-        setUpdatedBadge(null);
-        list.innerHTML = "";
-        const err = document.createElement("li");
-        err.className = "win";
-        err.innerHTML = `
-          <div class="winLeft">
-            <div class="who">Unable to load winners</div>
-            <div class="meta">Make sure winners.json exists in the same folder as index.html.</div>
+          return `
+            <div class="winner-card">
+              <div class="winner-header">
+                <div class="winner-wallet" title="${winner.recipient}">${shortWallet}</div>
+                <div class="winner-amount">${winner.amount.toFixed(4)} SOL</div>
+              </div>
+              <div class="winner-footer">
+                <div class="winner-time">${dateStr}</div>
+                <div class="winner-actions">
+                  <a href="${winner.solscanUrl}" target="_blank" class="btn btn-verify">Verify on Solscan</a>
+                  <a href="${shareUrl}" target="_blank" class="btn btn-share">Share on 𝕏</a>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        errorContainer.innerHTML = '';
+
+      } catch (error) {
+        console.error('Error loading winners:', error);
+        errorContainer.innerHTML = `
+          <div class="error">
+            Unable to load winner data. Retrying...
           </div>
-          <div class="amt">—</div>
         `;
-        list.appendChild(err);
       }
     }
 
+    // Load winners immediately and then every 60 seconds
     loadWinners();
-    // Refresh winners periodically (keeps page feeling “live” without overbuilding)
-    setInterval(loadWinners, 30000);
+    setInterval(loadWinners, 60000);
   </script>
 </body>
 </html>
