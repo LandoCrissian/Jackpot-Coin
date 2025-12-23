@@ -7,6 +7,14 @@
   <meta name="description" content="Jackpot Token — SOL payouts, verifiable on-chain." />
   <meta name="theme-color" content="#070A0F" />
 
+  <!-- ✅ Sharing / canonical domain -->
+  <link rel="canonical" href="https://www.jackpotcoin.fun/" />
+  <meta property="og:title" content="Jackpot Token (JACKPOT)" />
+  <meta property="og:description" content="SOL payouts • On-chain verification • Live cadence" />
+  <meta property="og:url" content="https://www.jackpotcoin.fun/" />
+  <meta property="og:image" content="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
+  <meta name="twitter:card" content="summary_large_image" />
+
   <style>
     :root{
       --bg:#070A0F;
@@ -49,7 +57,7 @@
     .brandText h1{margin:0;font-size:18px;letter-spacing:.3px;line-height:1.15}
     .brandText p{
       margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.25;
-      white-space:normal; /* IMPORTANT: no cutoff */
+      white-space:normal;
       overflow:visible;
       max-width:520px;
     }
@@ -356,6 +364,7 @@
       cadenceMs: 15 * 60 * 1000, // fallback until API loads
     };
 
+    // ✅ never overwrite this with null once we have a value
     let lastPayoutUTC_FROM_API = null;
 
     function pad2(n){ return String(n).padStart(2, "0"); }
@@ -429,13 +438,13 @@
       const walletLink = document.getElementById("payoutWalletLink");
       walletLink.href = data?.payoutWalletUrl || "#";
 
-      if (data?.error === "feed_unavailable") {
-        live.textContent = "Feed unstable";
+      if (data?.stale || data?.error) {
+        live.textContent = "Feed unstable (showing last known)";
       } else {
         live.textContent = "Live";
       }
 
-      const m = minutesAgo(data?.lastPayoutUTC);
+      const m = minutesAgo(data?.lastPayoutUTC || lastPayoutUTC_FROM_API);
       last.textContent = (m === null) ? "—" : `${m}m ago`;
     }
 
@@ -491,8 +500,9 @@ ${CONFIG.site}`;
     }
 
     function renderWinners(listEl, winners){
+      const top5 = (Array.isArray(winners) ? winners : []).slice(0, 5); // ✅ ALWAYS 5
       listEl.innerHTML = "";
-      if (!winners.length) {
+      if (!top5.length) {
         const empty = document.createElement("li");
         empty.className = "win";
         empty.innerHTML = `
@@ -504,16 +514,21 @@ ${CONFIG.site}`;
         listEl.appendChild(empty);
         return;
       }
-      winners.forEach(w => listEl.appendChild(winnerItem(w)));
+      top5.forEach(w => listEl.appendChild(winnerItem(w)));
     }
 
-    // show last good winners immediately on load (better UX)
+    // show last good winners immediately on load
     (function bootFromStorage(){
       const list = document.getElementById("winnersList");
-      const key = "jackpot_last_good_payload_v1";
+      const key = "jackpot_last_good_payload_v2";
       try{
         const saved = JSON.parse(localStorage.getItem(key) || "null");
         if (saved?.winners?.length) {
+          if (saved.lastPayoutUTC) lastPayoutUTC_FROM_API = saved.lastPayoutUTC;
+          if (typeof saved.cadenceSeconds === "number" && saved.cadenceSeconds > 0) {
+            CONFIG.cadenceMs = saved.cadenceSeconds * 1000;
+            document.getElementById("cadenceText").textContent = `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
+          }
           setUpdatedBadge(saved.updatedUTC || null);
           setStatus(saved);
           renderWinners(list, saved.winners);
@@ -522,64 +537,57 @@ ${CONFIG.site}`;
     })();
 
     async function loadWinners(){
-  const list = document.getElementById("winnersList");
-  const keyLastGood = "jackpot_last_good_payload_v1";
+      const list = document.getElementById("winnersList");
+      const keyLastGood = "jackpot_last_good_payload_v2";
 
-  try{
-    const res = await fetch(CONFIG.api, { cache: "no-store" });
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
+      try{
+        const res = await fetch(CONFIG.api, { cache: "no-store" });
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
 
-    // If the function says it’s stale / unstable, do NOT re-render list with empty data
-    if (data?.error === "feed_unavailable") {
-      showToast("RPC hiccup — keeping last winners");
-      setStatus(data);
-      return;
-    }
+        // ✅ only update last payout if valid (prevents timer jumping)
+        if (data?.lastPayoutUTC) lastPayoutUTC_FROM_API = data.lastPayoutUTC;
 
-    // If winners comes back empty but we already have last good winners, keep them
-    const incoming = Array.isArray(data.winners) ? data.winners : [];
-    if (incoming.length === 0) {
-      const saved = JSON.parse(localStorage.getItem(keyLastGood) || "null");
-      if (saved?.winners?.length) {
-        showToast("Waiting for RPC index… keeping last winners");
+        // cadence
+        if (typeof data?.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
+          CONFIG.cadenceMs = data.cadenceSeconds * 1000;
+          document.getElementById("cadenceText").textContent =
+            `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
+        }
+
         setUpdatedBadge(data.updatedUTC || null);
         setStatus(data);
-        return; // IMPORTANT: don’t wipe UI
+
+        // ✅ ALWAYS render winners if provided (even if stale)
+        if (Array.isArray(data?.winners) && data.winners.length) {
+          renderWinners(list, data.winners);
+
+          // persist last good
+          localStorage.setItem(keyLastGood, JSON.stringify({
+            updatedUTC: data.updatedUTC,
+            payoutWalletUrl: data.payoutWalletUrl,
+            lastPayoutUTC: data.lastPayoutUTC || lastPayoutUTC_FROM_API,
+            cadenceSeconds: data.cadenceSeconds || Math.round(CONFIG.cadenceMs / 1000),
+            winners: data.winners
+          }));
+        } else {
+          // If no winners returned, keep whatever UI already has
+          showToast("Waiting for RPC index… keeping last winners");
+        }
+
+        if (data?.stale || data?.error) {
+          showToast("RPC hiccup — showing last known");
+        }
+
+      }catch(e){
+        showToast("Feed unstable — keeping last winners");
+        document.getElementById("liveStatus").textContent = "Feed unstable (showing last known)";
+        // IMPORTANT: do NOT clear winners on error
       }
     }
 
-    // Normal good update path
-    lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
-
-    if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
-      CONFIG.cadenceMs = data.cadenceSeconds * 1000;
-    }
-    document.getElementById("cadenceText").textContent =
-      `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
-
-    setUpdatedBadge(data.updatedUTC);
-    setStatus(data);
-
-    renderWinners(list, incoming);
-
-    // Persist last good payload
-    localStorage.setItem(keyLastGood, JSON.stringify({
-      updatedUTC: data.updatedUTC,
-      payoutWalletUrl: data.payoutWalletUrl,
-      lastPayoutUTC: data.lastPayoutUTC,
-      winners: incoming
-    }));
-
-  }catch(e){
-    showToast("Feed unavailable — keeping last winners");
-    document.getElementById("liveStatus").textContent = "Feed unstable";
-    // IMPORTANT: don’t clear winners on error
-  }
-}
-
     loadWinners();
-    setInterval(loadWinners, 12_000); // faster UX without crushing RPC (server caches)
+    setInterval(loadWinners, 12_000);
   </script>
 </body>
 </html>
