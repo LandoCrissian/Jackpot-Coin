@@ -35,13 +35,18 @@
     .wrap{max-width:1040px;margin:0 auto;padding:18px 16px 64px}
     header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0 16px}
     .brand{display:flex;align-items:center;gap:12px;min-width:0}
+
+    /* ✅ Token logo (image) */
     .logo{
       width:44px;height:44px;border-radius:14px;
-      background:linear-gradient(135deg, rgba(52,211,153,.22), rgba(124,58,237,.22));
       border:1px solid var(--stroke);
       box-shadow:var(--shadow);
       flex:0 0 auto;
+      object-fit:cover;
+      background:rgba(255,255,255,.02);
+      display:block;
     }
+
     .brandText{min-width:0}
     .brandText h1{margin:0;font-size:16px;letter-spacing:.3px;line-height:1.1}
     .brandText p{
@@ -227,7 +232,14 @@
   <div class="wrap">
     <header>
       <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
+        <!-- ✅ Token logo image -->
+        <img
+          class="logo"
+          id="tokenLogo"
+          src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg"
+          alt="JACKPOT token logo"
+          loading="eager"
+        />
         <div class="brandText">
           <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
           <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
@@ -235,7 +247,12 @@
       </div>
 
       <div class="ctaRow">
-        <a class="btn" href="https://x.com/i/communities/2003432724514676762" target="_blank" rel="noopener">Community ↗</a>
+        <!-- ✅ Updated community link -->
+        <a class="btn" href="https://x.com/i/communities/2003560731950612759" target="_blank" rel="noopener">Community ↗</a>
+
+        <!-- ✅ New Telegram button -->
+        <a class="btn" href="https://t.me/JackpotCoinCto" target="_blank" rel="noopener">Telegram ↗</a>
+
         <a class="btn btnPrimary" href="https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
       </div>
     </header>
@@ -319,16 +336,18 @@
       solscanTxBase: "https://solscan.io/tx/",
       solscanAccountBase: "https://solscan.io/account/",
       contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
-      community: "https://x.com/i/communities/2003432724514676762",
+
+      // ✅ updated links
+      community: "https://x.com/i/communities/2003560731950612759",
+      telegram: "https://t.me/JackpotCoinCto",
+
       trade: "https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
       site: "https://jackpotcoin.netlify.app/",
       cadenceMs: 15 * 60 * 1000, // fallback until API loads
     };
 
-    // countdown anchor
     let lastPayoutUTC_FROM_API = null;
 
-    // polling control (normal + burst)
     let pollMs = 30000;
     let pollTimer = null;
 
@@ -422,8 +441,11 @@
 💰 ${amt} SOL
 🔍 Proof: ${txUrl}
 
-Join the community:
+Community:
 ${CONFIG.community}
+
+Telegram:
+${CONFIG.telegram}
 
 Trade JACKPOT:
 ${CONFIG.trade}
@@ -470,10 +492,8 @@ ${CONFIG.site}`;
         if(!res.ok) throw new Error("Failed to fetch live winners feed");
         const data = await res.json();
 
-        // anchor timer
         lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
 
-        // cadence from API (seconds)
         if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
           CONFIG.cadenceMs = data.cadenceSeconds * 1000;
         }
@@ -483,23 +503,21 @@ ${CONFIG.site}`;
         setUpdatedBadge(data.updatedUTC);
         setStatus(data);
 
-        // ---- burst polling when a NEW payout arrives (feels instant)
         const lastSeenKey = "jackpot_last_payout_seen_v1";
         const prevSeen = localStorage.getItem(lastSeenKey);
 
         if (data.lastPayoutUTC && data.lastPayoutUTC !== prevSeen) {
           localStorage.setItem(lastSeenKey, data.lastPayoutUTC);
 
-          pollMs = 8000;   // faster
+          pollMs = 8000;
           startPolling();
 
           setTimeout(() => {
-            pollMs = 30000; // back to normal
+            pollMs = 30000;
             startPolling();
           }, 2 * 60 * 1000);
         }
 
-        // Persist winners so they don't disappear
         const key = "jackpot_recent_winners_v1";
         const prev = JSON.parse(localStorage.getItem(key) || "[]");
         const incoming = Array.isArray(data.winners) ? data.winners : [];
@@ -544,7 +562,6 @@ ${CONFIG.site}`;
       }
     }
 
-    // start
     loadWinners();
     startPolling();
   </script>
