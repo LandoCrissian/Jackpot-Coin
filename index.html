@@ -522,49 +522,61 @@ ${CONFIG.site}`;
     })();
 
     async function loadWinners(){
-      const list = document.getElementById("winnersList");
-      const keyLastGood = "jackpot_last_good_payload_v1";
+  const list = document.getElementById("winnersList");
+  const keyLastGood = "jackpot_last_good_payload_v1";
 
-      try{
-        const res = await fetch(CONFIG.api, { cache: "no-store" });
-        if(!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
+  try{
+    const res = await fetch(CONFIG.api, { cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
 
-        // if feed is unstable, DO NOT wipe UI — just toast it
-        if (data?.error === "feed_unavailable") {
-          showToast("RPC hiccup — retrying…");
-          setStatus(data);
-          return;
-        }
+    // If the function says it’s stale / unstable, do NOT re-render list with empty data
+    if (data?.error === "feed_unavailable") {
+      showToast("RPC hiccup — keeping last winners");
+      setStatus(data);
+      return;
+    }
 
-        lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
-
-        if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
-          CONFIG.cadenceMs = data.cadenceSeconds * 1000;
-        }
-        document.getElementById("cadenceText").textContent =
-          `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
-
-        setUpdatedBadge(data.updatedUTC);
+    // If winners comes back empty but we already have last good winners, keep them
+    const incoming = Array.isArray(data.winners) ? data.winners : [];
+    if (incoming.length === 0) {
+      const saved = JSON.parse(localStorage.getItem(keyLastGood) || "null");
+      if (saved?.winners?.length) {
+        showToast("Waiting for RPC index… keeping last winners");
+        setUpdatedBadge(data.updatedUTC || null);
         setStatus(data);
-
-        const winners = Array.isArray(data.winners) ? data.winners : [];
-        renderWinners(list, winners);
-
-        // persist last good payload (helps refresh + temporary RPC issues)
-        localStorage.setItem(keyLastGood, JSON.stringify({
-          updatedUTC: data.updatedUTC,
-          payoutWalletUrl: data.payoutWalletUrl,
-          lastPayoutUTC: data.lastPayoutUTC,
-          winners
-        }));
-
-      }catch(e){
-        showToast("Feed unavailable — will retry");
-        // IMPORTANT: do not clear winners on error
-        document.getElementById("liveStatus").textContent = "Feed unstable";
+        return; // IMPORTANT: don’t wipe UI
       }
     }
+
+    // Normal good update path
+    lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
+
+    if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
+      CONFIG.cadenceMs = data.cadenceSeconds * 1000;
+    }
+    document.getElementById("cadenceText").textContent =
+      `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
+
+    setUpdatedBadge(data.updatedUTC);
+    setStatus(data);
+
+    renderWinners(list, incoming);
+
+    // Persist last good payload
+    localStorage.setItem(keyLastGood, JSON.stringify({
+      updatedUTC: data.updatedUTC,
+      payoutWalletUrl: data.payoutWalletUrl,
+      lastPayoutUTC: data.lastPayoutUTC,
+      winners: incoming
+    }));
+
+  }catch(e){
+    showToast("Feed unavailable — keeping last winners");
+    document.getElementById("liveStatus").textContent = "Feed unstable";
+    // IMPORTANT: don’t clear winners on error
+  }
+}
 
     loadWinners();
     setInterval(loadWinners, 12_000); // faster UX without crushing RPC (server caches)
