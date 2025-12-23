@@ -338,95 +338,129 @@
   </div>
 
   <script>
-    const CONFIG = {
-      const CADENCE_MS = 10 * 60 * 1000;
+  // =========================
+  // CONFIG
+  // =========================
+  const CONFIG = {
+    api: "/.netlify/functions/get-winners",
+    solscanTxBase: "https://solscan.io/tx/",
+    solscanAccountBase: "https://solscan.io/account/",
+    contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
+    community: "https://x.com/i/communities/2003432724514676762",
+    trade: "https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
+    site: "https://jackpotcoin.netlify.app/",
+    cadenceMs: 10 * 60 * 1000,
+  };
 
-function pad2(n){ return String(n).padStart(2, "0"); }
+  // ✅ (1) PUT IT HERE: global variable the timer will use
+  let lastPayoutUTC_FROM_API = null;
 
-function formatUtcHM(ms){
-  const d = new Date(ms);
-  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
-}
+  // =========================
+  // Helpers
+  // =========================
+  function pad2(n){ return String(n).padStart(2, "0"); }
 
-// Pick an anchor:
-// - prefer last payout (on-chain truth)
-// - otherwise fall back to unix epoch alignment
-function computeNextDrawMs(nowMs, lastPayoutUTC){
-  const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
-
-  // If we have a valid last payout, roll forward by cadence until it's > now
-  if (!Number.isNaN(lastMs)) {
-    if (nowMs <= lastMs) return lastMs + CADENCE_MS;
-
-    const elapsed = nowMs - lastMs;
-    const steps = Math.floor(elapsed / CADENCE_MS) + 1;
-    return lastMs + steps * CADENCE_MS;
+  function shortAddr(a){
+    if(!a || a.length < 12) return a || "";
+    return a.slice(0, 6) + "…" + a.slice(-4);
   }
 
-  // Fallback: next multiple of cadence since unix epoch
-  return Math.ceil(nowMs / CADENCE_MS) * CADENCE_MS;
-}
+  function utcString(iso){
+    try { return new Date(iso).toUTCString(); } catch { return ""; }
+  }
 
-let lastPayoutUTC_FROM_API = null;
+  function minutesAgo(iso){
+    if(!iso) return null;
+    const ms = Date.now() - Date.parse(iso);
+    if (!Number.isFinite(ms)) return null;
+    return Math.max(0, Math.floor(ms / 60000));
+  }
 
-function tickCountdown(){
-  const now = Date.now();
-  const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
-  const diff = Math.max(0, next - now);
+  function formatUtcHM(ms){
+    const d = new Date(ms);
+    return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
+  }
 
-  const totalSec = Math.floor(diff / 1000);
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = totalSec % 60;
+  // Pick an anchor:
+  // - prefer last payout (on-chain truth)
+  // - otherwise fall back to unix epoch alignment
+  function computeNextDrawMs(nowMs, lastPayoutUTC){
+    const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
 
-  document.getElementById("cdMin").textContent = pad2(minutes);
-  document.getElementById("cdSec").textContent = pad2(seconds);
-  document.getElementById("nextUtc").textContent = formatUtcHM(next);
-}
-
-// Run continuously (does not depend on fetch)
-setInterval(tickCountdown, 250);
-tickCountdown();
-
-    // -------- copy contract
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const btn = document.getElementById("copyBtn");
-      try{
-        await navigator.clipboard.writeText(CONFIG.contract);
-        const old = btn.textContent;
-        btn.textContent = "Copied";
-        setTimeout(() => btn.textContent = old, 900);
-      }catch(e){
-        alert("Copy failed. Please copy manually.");
-      }
-    });
-
-    // -------- UI setters
-    function setUpdatedBadge(iso){
-      const el = document.getElementById("updatedBadge");
-      el.innerHTML = iso ? `<strong>Updated</strong>: ${utcString(iso)}` : `<strong>Updated</strong>: —`;
+    if (!Number.isNaN(lastMs)) {
+      if (nowMs <= lastMs) return lastMs + CONFIG.cadenceMs;
+      const elapsed = nowMs - lastMs;
+      const steps = Math.floor(elapsed / CONFIG.cadenceMs) + 1;
+      return lastMs + steps * CONFIG.cadenceMs;
     }
 
-    function setStatus(data){
-      const live = document.getElementById("liveStatus");
-      const last = document.getElementById("lastPayout");
-      const walletLink = document.getElementById("payoutWalletLink");
+    return Math.ceil(nowMs / CONFIG.cadenceMs) * CONFIG.cadenceMs;
+  }
 
-      walletLink.href = data?.payoutWalletUrl || "#";
+  // =========================
+  // Countdown (always running)
+  // =========================
+  function tickCountdown(){
+    const now = Date.now();
+    const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
+    const diff = Math.max(0, next - now);
 
-      const m = minutesAgo(data?.lastPayoutUTC);
-      if (m === null) {
-        live.textContent = "No payout detected yet";
-        last.textContent = "—";
-      } else {
-        live.textContent = "Live";
-        last.textContent = `${m}m ago`;
-      }
+    const totalSec = Math.floor(diff / 1000);
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+
+    document.getElementById("cdMin").textContent = pad2(minutes);
+    document.getElementById("cdSec").textContent = pad2(seconds);
+    document.getElementById("nextUtc").textContent = formatUtcHM(next);
+  }
+
+  setInterval(tickCountdown, 250);
+  tickCountdown();
+
+  // =========================
+  // Copy contract
+  // =========================
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("copyBtn");
+    try{
+      await navigator.clipboard.writeText(CONFIG.contract);
+      const old = btn.textContent;
+      btn.textContent = "Copied";
+      setTimeout(() => btn.textContent = old, 900);
+    }catch(e){
+      alert("Copy failed. Please copy manually.");
     }
+  });
 
-    function xShareUrl(w){
-      const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
-      const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "");
-      const text =
+  // =========================
+  // UI setters
+  // =========================
+  function setUpdatedBadge(iso){
+    const el = document.getElementById("updatedBadge");
+    el.innerHTML = iso ? `<strong>Updated</strong>: ${utcString(iso)}` : `<strong>Updated</strong>: —`;
+  }
+
+  function setStatus(data){
+    const live = document.getElementById("liveStatus");
+    const last = document.getElementById("lastPayout");
+    const walletLink = document.getElementById("payoutWalletLink");
+
+    walletLink.href = data?.payoutWalletUrl || "#";
+
+    const m = minutesAgo(data?.lastPayoutUTC);
+    if (m === null) {
+      live.textContent = "No payout detected yet";
+      last.textContent = "—";
+    } else {
+      live.textContent = "Live";
+      last.textContent = `${m}m ago`;
+    }
+  }
+
+  function xShareUrl(w){
+    const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
+    const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "");
+    const text =
 `🎉 Jackpot winner paid on Solana
 💰 ${amt} SOL
 🔍 Proof: ${txUrl}
@@ -437,99 +471,104 @@ ${CONFIG.community}
 Trade JACKPOT:
 ${CONFIG.trade}
 
-Status:
+Live status:
 ${CONFIG.site}`;
-      return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
-    }
+    return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+  }
 
-    // -------- render winners
-    function winnerItem(w){
-      const walletFull = (w.wallet || "").trim();
-      const tx = (w.tx || "").trim();
-      const walletShort = shortAddr(walletFull);
+  // =========================
+  // Render winners
+  // =========================
+  function winnerItem(w){
+    const walletFull = (w.wallet || "").trim();
+    const tx = (w.tx || "").trim();
+    const walletShort = shortAddr(walletFull);
 
-      const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
-      const solscanTx = w.solscanUrl || (tx ? (CONFIG.solscanTxBase + tx) : null);
+    const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
+    const solscanTx = w.solscanUrl || (tx ? (CONFIG.solscanTxBase + tx) : null);
 
-      const amount = typeof w.amountSOL === "number" ? `${w.amountSOL.toFixed(4)} SOL` : (w.amountSOL || "—");
-      const when = w.whenUTC ? utcString(w.whenUTC) : "—";
+    const amount = typeof w.amountSOL === "number" ? `${w.amountSOL.toFixed(4)} SOL` : (w.amountSOL || "—");
+    const when = w.whenUTC ? utcString(w.whenUTC) : "—";
 
-      const li = document.createElement("li");
-      li.className = "win";
-      li.innerHTML = `
-        <div class="winLeft">
-          <div class="who" title="${walletFull}">
-            ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
-          </div>
-          <div class="meta">
-            <span>${when}</span>
-            ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
-            ${solscanTx ? `<span>•</span><a class="iconBtn" href="${xShareUrl(w)}" target="_blank" rel="noopener">Share 𝕏 ↗</a>` : ""}
-          </div>
+    const li = document.createElement("li");
+    li.className = "win";
+    li.innerHTML = `
+      <div class="winLeft">
+        <div class="who" title="${walletFull}">
+          ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
         </div>
-        <div class="amt">${amount}</div>
-      `;
-      return li;
-    }
+        <div class="meta">
+          <span>${when}</span>
+          ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
+          ${solscanTx ? `<span>•</span><a class="iconBtn" href="${xShareUrl(w)}" target="_blank" rel="noopener">Share 𝕏 ↗</a>` : ""}
+        </div>
+      </div>
+      <div class="amt">${amount}</div>
+    `;
+    return li;
+  }
 
-    async function loadWinners(){
-      const list = document.getElementById("winnersList");
-      try{
-        const res = await fetch(CONFIG.api, { cache: "no-store" });
-        if(!res.ok) throw new Error("Failed to fetch live winners feed");
-        const data = await res.json();
+  async function loadWinners(){
+    const list = document.getElementById("winnersList");
 
-        setUpdatedBadge(data.updatedUTC);
-        setStatus(data);
+    try{
+      const res = await fetch(CONFIG.api, { cache: "no-store" });
+      if(!res.ok) throw new Error("Failed to fetch live winners feed");
+      const data = await res.json();
 
-        if (data.nextDrawUTC) nextDrawEpochMs = Date.parse(data.nextDrawUTC);
+      // ✅ (2) PUT IT HERE: immediately after JSON is parsed
+      lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
 
-        // Persist winners so they don't “disappear” between polls
-        const key = "jackpot_recent_winners_v1";
-        const prev = JSON.parse(localStorage.getItem(key) || "[]");
-        const incoming = Array.isArray(data.winners) ? data.winners : [];
+      setUpdatedBadge(data.updatedUTC);
+      setStatus(data);
 
-        const merged = [...incoming, ...prev]
-          .filter(w => w && w.tx)
-          .reduce((acc, w) => (acc.some(x => x.tx === w.tx) ? acc : acc.concat(w)), [])
-          .sort((a,b) => (Date.parse(b.whenUTC||0) - Date.parse(a.whenUTC||0)))
-          .slice(0, 20);
+      // Persist winners so they don't “disappear” between polls
+      const key = "jackpot_recent_winners_v1";
+      const prev = JSON.parse(localStorage.getItem(key) || "[]");
+      const incoming = Array.isArray(data.winners) ? data.winners : [];
 
-        localStorage.setItem(key, JSON.stringify(merged));
+      const merged = [...incoming, ...prev]
+        .filter(w => w && w.tx)
+        .reduce((acc, w) => (acc.some(x => x.tx === w.tx) ? acc : acc.concat(w)), [])
+        .sort((a,b) => (Date.parse(b.whenUTC||0) - Date.parse(a.whenUTC||0)))
+        .slice(0, 20);
 
-        list.innerHTML = "";
-        if (merged.length === 0) {
-          const empty = document.createElement("li");
-          empty.className = "win";
-          empty.innerHTML = `
-            <div class="winLeft">
-              <div class="who">No payouts detected yet</div>
-              <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
-            </div>
-            <div class="amt">—</div>`;
-          list.appendChild(empty);
-          return;
-        }
+      localStorage.setItem(key, JSON.stringify(merged));
 
-        merged.forEach(w => list.appendChild(winnerItem(w)));
-      }catch(e){
-        setUpdatedBadge(null);
-        document.getElementById("liveStatus").textContent = "Feed unavailable";
-        list.innerHTML = "";
-        const err = document.createElement("li");
-        err.className = "win";
-        err.innerHTML = `
+      list.innerHTML = "";
+      if (merged.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "win";
+        empty.innerHTML = `
           <div class="winLeft">
-            <div class="who">Unable to load live winners</div>
-            <div class="meta">Refresh in a moment. If it persists, the RPC may be rate-limiting.</div>
+            <div class="who">No payouts detected yet</div>
+            <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
           </div>
           <div class="amt">—</div>`;
-        list.appendChild(err);
+        list.appendChild(empty);
+        return;
       }
-    }
 
-    loadWinners();
-    setInterval(loadWinners, 30000);
-  </script>
+      merged.forEach(w => list.appendChild(winnerItem(w)));
+
+    }catch(e){
+      setUpdatedBadge(null);
+      document.getElementById("liveStatus").textContent = "Feed unavailable";
+      list.innerHTML = "";
+      const err = document.createElement("li");
+      err.className = "win";
+      err.innerHTML = `
+        <div class="winLeft">
+          <div class="who">Unable to load live winners</div>
+          <div class="meta">Refresh in a moment. If it persists, the RPC may be rate-limiting.</div>
+        </div>
+        <div class="amt">—</div>`;
+      list.appendChild(err);
+    }
+  }
+
+  loadWinners();
+  setInterval(loadWinners, 30000);
+</script>
 </body>
 </html>
