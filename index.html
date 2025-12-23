@@ -225,6 +225,43 @@
     }
     .iconBtn:hover{background:rgba(255,255,255,.06)}
     .foot{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.55}
+
+    /* ✅ Mobile header layout: stacked brand + 3-across buttons */
+@media (max-width: 640px){
+  header{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 10px 0 10px;
+  }
+
+  .brand{
+    width: 100%;
+  }
+
+  /* Allow subtitle to wrap fully */
+  .brandText p{
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: 100%;
+  }
+
+  /* 3-across button grid */
+  .ctaRow{
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .ctaRow .btn{
+    width: 100%;
+    justify-content: center;
+    padding: 10px 6px;
+    font-size: 12.5px;
+  }
+}
   </style>
 </head>
 
