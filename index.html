@@ -325,7 +325,17 @@
       cadenceMs: 15 * 60 * 1000, // fallback until API loads
     };
 
+    // countdown anchor
     let lastPayoutUTC_FROM_API = null;
+
+    // polling control (normal + burst)
+    let pollMs = 30000;
+    let pollTimer = null;
+
+    function startPolling(){
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(loadWinners, pollMs);
+    }
 
     function pad2(n){ return String(n).padStart(2, "0"); }
     function shortAddr(a){ return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4); }
@@ -460,21 +470,36 @@ ${CONFIG.site}`;
         if(!res.ok) throw new Error("Failed to fetch live winners feed");
         const data = await res.json();
 
+        // anchor timer
         lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
 
-        // ✅ Auto-update cadence from API
+        // cadence from API (seconds)
         if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
           CONFIG.cadenceMs = data.cadenceSeconds * 1000;
         }
-
-        // Update cadence text
         document.getElementById("cadenceText").textContent =
           `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
 
         setUpdatedBadge(data.updatedUTC);
         setStatus(data);
 
-        // Persist winners so they don't “disappear” between polls
+        // ---- burst polling when a NEW payout arrives (feels instant)
+        const lastSeenKey = "jackpot_last_payout_seen_v1";
+        const prevSeen = localStorage.getItem(lastSeenKey);
+
+        if (data.lastPayoutUTC && data.lastPayoutUTC !== prevSeen) {
+          localStorage.setItem(lastSeenKey, data.lastPayoutUTC);
+
+          pollMs = 8000;   // faster
+          startPolling();
+
+          setTimeout(() => {
+            pollMs = 30000; // back to normal
+            startPolling();
+          }, 2 * 60 * 1000);
+        }
+
+        // Persist winners so they don't disappear
         const key = "jackpot_recent_winners_v1";
         const prev = JSON.parse(localStorage.getItem(key) || "[]");
         const incoming = Array.isArray(data.winners) ? data.winners : [];
@@ -519,8 +544,9 @@ ${CONFIG.site}`;
       }
     }
 
+    // start
     loadWinners();
-    setInterval(loadWinners, 30000);
+    startPolling();
   </script>
 </body>
 </html>
