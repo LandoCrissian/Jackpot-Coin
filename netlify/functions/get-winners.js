@@ -1,11 +1,11 @@
 // netlify/functions/get-winners.js
-// Fast + deterministic winner detection from System Program transfers
+// Fast winner detection from System Program transfers
 // + derives observed cadence from recent payout gaps (median)
 
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 const RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";
 
-const CACHE_MS = 20_000;
+const CACHE_MS = 8_000;          // ✅ faster “freshness”
 const SIG_LIMIT = 80;            // keep small to avoid timeouts
 const MAX_WINNERS = 20;
 const CONCURRENCY = 8;
@@ -28,7 +28,7 @@ function isoFromBlockTime(bt) {
 }
 
 function extractTransfers(tx) {
-  // Top-level + inner instructions (some transfers show up as inner)
+  // Top-level + inner instructions
   const out = [];
   const msgIxs = tx?.transaction?.message?.instructions || [];
   for (const ix of msgIxs) out.push(ix);
@@ -72,7 +72,7 @@ exports.handler = async (event) => {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "public, max-age=10",
+    "Cache-Control": "public, max-age=5", // ✅ shorter
   };
 
   if (event.httpMethod === "OPTIONS") {
@@ -94,7 +94,6 @@ exports.handler = async (event) => {
       .filter(s => s && !s.err)
       .map(s => s.signature);
 
-    // Fetch transactions in parallel (but capped)
     const txs = await mapLimit(signatures, CONCURRENCY, async (sig) => {
       const tx = await rpc("getTransaction", [
         sig,
@@ -121,7 +120,7 @@ exports.handler = async (event) => {
           if (source === PAYOUT_WALLET && destination && destination !== PAYOUT_WALLET) {
             const solAmount = lamports / 1e9;
 
-            // Reasonable payout range filter
+            // payout range filter
             if (solAmount >= 0.01 && solAmount <= 1000) {
               winners.push({
                 wallet: destination,
@@ -138,25 +137,22 @@ exports.handler = async (event) => {
       if (winners.length >= MAX_WINNERS) break;
     }
 
-    // Sort newest first
     winners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
 
     const lastPayoutUTC = winners[0]?.whenUTC || null;
 
-    // --- derive observed cadence from recent payout gaps (median) ---
+    // --- observed cadence (median of recent gaps)
     let cadenceSeconds = null;
 
     if (winners.length >= 3) {
       const times = winners
         .map(w => Date.parse(w.whenUTC))
         .filter(Number.isFinite)
-        .sort((a, b) => b - a); // newest -> older
+        .sort((a, b) => b - a);
 
       const gaps = [];
       for (let i = 0; i < Math.min(times.length - 1, 12); i++) {
         const gapSec = Math.round((times[i] - times[i + 1]) / 1000);
-
-        // Keep sane gaps only: 2 minutes to 60 minutes
         if (gapSec >= 120 && gapSec <= 3600) gaps.push(gapSec);
       }
 
@@ -164,7 +160,6 @@ exports.handler = async (event) => {
       if (med) cadenceSeconds = Math.round(med);
     }
 
-    // Fallback: if we can't infer, assume ~15min (matches what you’re observing)
     if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
     const nextDrawUTC = lastPayoutUTC
@@ -177,7 +172,7 @@ exports.handler = async (event) => {
       payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
       lastPayoutUTC,
       nextDrawUTC,
-      cadenceSeconds, // ✅ NEW
+      cadenceSeconds,
       winners: winners.slice(0, MAX_WINNERS),
     };
 
