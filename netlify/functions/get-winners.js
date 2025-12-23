@@ -1,11 +1,17 @@
+// netlify/functions/get-winners.js
+// Live winner feed from payout wallet System Program transfers (Solana RPC)
+
+const fetch = require("node-fetch");
+
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 const RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";
 
-// Cache to reduce RPC load and keep UI stable
-const CACHE_DURATION_MS = 30_000;
+const CACHE_MS = 25_000;          // short cache so site feels live
+const MAX_PAYOUTS = 30;           // how many payouts we try to collect
+const MAX_PAGES = 7;              // pagination pages of signatures
+const SIGS_PER_PAGE = 100;        // getSignaturesForAddress limit
 
-let cachedData = null;
-let cacheTimestamp = 0;
+let cache = { ts: 0, data: null };
 
 async function rpc(method, params) {
   const res = await fetch(RPC_ENDPOINT, {
@@ -15,8 +21,13 @@ async function rpc(method, params) {
   });
 
   const json = await res.json();
-  if (json?.error) throw new Error(json.error.message);
+  if (json.error) throw new Error(json.error.message || "RPC error");
   return json.result;
+}
+
+function isoFromBlockTime(bt) {
+  if (!bt) return null;
+  return new Date(bt * 1000).toISOString();
 }
 
 exports.handler = async (event) => {
@@ -35,44 +46,42 @@ exports.handler = async (event) => {
   try {
     const now = Date.now();
 
-    if (cachedData && (now - cacheTimestamp) < CACHE_DURATION_MS) {
-      return { statusCode: 200, headers, body: JSON.stringify(cachedData) };
+    if (cache.data && (now - cache.ts) < CACHE_MS) {
+      return { statusCode: 200, headers, body: JSON.stringify(cache.data) };
     }
 
-    // Pull more history so winners don't “disappear”
     const winners = [];
     let before = undefined;
-    let pages = 0;
 
-    while (winners.length < 30 && pages < 6) {
-      pages++;
-
+    for (let page = 0; page < MAX_PAGES && winners.length < MAX_PAYOUTS; page++) {
       const sigs = await rpc("getSignaturesForAddress", [
         PAYOUT_WALLET,
-        { limit: 100, ...(before ? { before } : {}) },
+        { limit: SIGS_PER_PAGE, ...(before ? { before } : {}) },
       ]);
 
       if (!sigs || sigs.length === 0) break;
       before = sigs[sigs.length - 1].signature;
 
-      // Sequential fetch to avoid blasting RPC
+      // Fetch tx details sequentially (more reliable, less rate-limit pain)
       for (const s of sigs) {
-        if (s.err) continue;
+        if (!s || s.err) continue;
 
         const tx = await rpc("getTransaction", [
           s.signature,
           { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
         ]);
 
-        if (!tx || !tx.meta || tx.meta.err) continue;
+        if (!tx || !tx.transaction || !tx.meta || tx.meta.err) continue;
 
-        const blockTime = tx.blockTime || s.blockTime || null;
-        const instructions = tx.transaction?.message?.instructions || [];
+        const bt = tx.blockTime || s.blockTime || null;
+        const whenUTC = isoFromBlockTime(bt);
 
+        const instructions = tx.transaction.message.instructions || [];
+
+        // Only count System Program transfer instructions from payout wallet
         for (const ix of instructions) {
-          // Deterministic: System Program transfer from payout wallet
-          if (ix.program === "system" && ix.parsed?.type === "transfer") {
-            const info = ix.parsed.info;
+          if (ix?.program === "system" && ix?.parsed?.type === "transfer") {
+            const info = ix.parsed.info || {};
             const source = info.source;
             const destination = info.destination;
             const lamports = info.lamports;
@@ -80,21 +89,21 @@ exports.handler = async (event) => {
             if (source === PAYOUT_WALLET && destination && destination !== PAYOUT_WALLET) {
               const solAmount = lamports / 1e9;
 
-              // Reasonable payout filter
+              // Safety range filter (keeps non-payout dust/etc out)
               if (solAmount >= 0.01 && solAmount <= 1000) {
                 winners.push({
                   wallet: destination,
                   amountSOL: Number(solAmount.toFixed(9)),
-                  whenUTC: blockTime ? new Date(blockTime * 1000).toISOString() : null,
+                  whenUTC,
                   tx: s.signature,
-                  solscanTx: `https://solscan.io/tx/${s.signature}`,
+                  solscanUrl: `https://solscan.io/tx/${s.signature}`,
                 });
               }
             }
           }
         }
 
-        if (winners.length >= 30) break;
+        if (winners.length >= MAX_PAYOUTS) break;
       }
     }
 
@@ -110,7 +119,7 @@ exports.handler = async (event) => {
       ? new Date(Date.parse(lastPayoutUTC) + 10 * 60 * 1000).toISOString()
       : null;
 
-    const response = {
+    const data = {
       updatedUTC: new Date().toISOString(),
       payoutWallet: PAYOUT_WALLET,
       payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
@@ -119,17 +128,16 @@ exports.handler = async (event) => {
       winners: winners.slice(0, 20),
     };
 
-    cachedData = response;
-    cacheTimestamp = now;
+    cache = { ts: now, data };
 
-    return { statusCode: 200, headers, body: JSON.stringify(response) };
-  } catch (err) {
+    return { statusCode: 200, headers, body: JSON.stringify(data) };
+  } catch (e) {
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         error: "Failed to fetch winner data",
-        message: err.message || String(err),
+        message: String(e?.message || e),
       }),
     };
   }
