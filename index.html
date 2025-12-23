@@ -339,56 +339,53 @@
 
   <script>
     const CONFIG = {
-      cadenceMs: 10 * 60 * 1000,
-      api: "/.netlify/functions/get-winners",
-      solscanTxBase: "https://solscan.io/tx/",
-      solscanAccountBase: "https://solscan.io/account/",
-      contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
-      community: "https://x.com/i/communities/2003432724514676762",
-      trade: "https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
-      site: "https://jackpotcoin.netlify.app"
-    };
+      const CADENCE_MS = 10 * 60 * 1000;
 
-    // -------- helpers
-    function pad2(n){ return String(n).padStart(2, "0"); }
-    function shortAddr(a){
-      if(!a || a.length < 12) return a || "";
-      return a.slice(0, 6) + "…" + a.slice(-4);
-    }
-    function utcString(iso){
-      try { return new Date(iso).toUTCString(); } catch { return ""; }
-    }
-    function formatUtcHM(ms){
-      const d = new Date(ms);
-      return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
-    }
-    function minutesAgo(iso){
-      if(!iso) return null;
-      const ms = Date.now() - Date.parse(iso);
-      return Math.max(0, Math.floor(ms / 60000));
-    }
+function pad2(n){ return String(n).padStart(2, "0"); }
 
-    // -------- countdown synced to API nextDrawUTC
-    let nextDrawEpochMs = null;
+function formatUtcHM(ms){
+  const d = new Date(ms);
+  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
+}
 
-    function nextEpochFallback(nowMs){
-      return Math.ceil(nowMs / CONFIG.cadenceMs) * CONFIG.cadenceMs;
-    }
+// Pick an anchor:
+// - prefer last payout (on-chain truth)
+// - otherwise fall back to unix epoch alignment
+function computeNextDrawMs(nowMs, lastPayoutUTC){
+  const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
 
-    function tickCountdown(){
-      const now = Date.now();
-      const next = nextDrawEpochMs || nextEpochFallback(now);
-      const diff = Math.max(0, next - now);
-      const totalSec = Math.floor(diff / 1000);
-      const mm = Math.floor(totalSec / 60);
-      const ss = totalSec % 60;
+  // If we have a valid last payout, roll forward by cadence until it's > now
+  if (!Number.isNaN(lastMs)) {
+    if (nowMs <= lastMs) return lastMs + CADENCE_MS;
 
-      document.getElementById("cdMin").textContent = pad2(mm);
-      document.getElementById("cdSec").textContent = pad2(ss);
-      document.getElementById("nextUtc").textContent = formatUtcHM(next);
-    }
-    setInterval(tickCountdown, 250);
-    tickCountdown();
+    const elapsed = nowMs - lastMs;
+    const steps = Math.floor(elapsed / CADENCE_MS) + 1;
+    return lastMs + steps * CADENCE_MS;
+  }
+
+  // Fallback: next multiple of cadence since unix epoch
+  return Math.ceil(nowMs / CADENCE_MS) * CADENCE_MS;
+}
+
+let lastPayoutUTC_FROM_API = null;
+
+function tickCountdown(){
+  const now = Date.now();
+  const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
+  const diff = Math.max(0, next - now);
+
+  const totalSec = Math.floor(diff / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+
+  document.getElementById("cdMin").textContent = pad2(minutes);
+  document.getElementById("cdSec").textContent = pad2(seconds);
+  document.getElementById("nextUtc").textContent = formatUtcHM(next);
+}
+
+// Run continuously (does not depend on fetch)
+setInterval(tickCountdown, 250);
+tickCountdown();
 
     // -------- copy contract
     document.getElementById("copyBtn").addEventListener("click", async () => {
