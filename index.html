@@ -33,27 +33,40 @@
         var(--bg);
     }
     .wrap{max-width:1040px;margin:0 auto;padding:18px 16px 64px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0 16px}
-    .brand{display:flex;align-items:center;gap:12px;min-width:0}
 
-    /* ✅ Token logo (image) */
-    .logo{
-      width:44px;height:44px;border-radius:14px;
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0 16px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}
+    .logoImg{
+      width:54px;height:54px;border-radius:16px;
       border:1px solid var(--stroke);
       box-shadow:var(--shadow);
-      flex:0 0 auto;
+      background:rgba(255,255,255,.03);
       object-fit:cover;
-      background:rgba(255,255,255,.02);
-      display:block;
+      flex:0 0 auto;
     }
 
     .brandText{min-width:0}
-    .brandText h1{margin:0;font-size:16px;letter-spacing:.3px;line-height:1.1}
+    .brandText h1{margin:0;font-size:18px;letter-spacing:.3px;line-height:1.15}
     .brandText p{
-      margin:4px 0 0;color:var(--muted);font-size:12.5px;line-height:1.2;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw;
+      margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.25;
+      white-space:normal; /* IMPORTANT: no cutoff */
+      overflow:visible;
+      max-width:520px;
     }
-    .ctaRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+
+    .ctaRow{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:10px;
+      width:min(520px, 100%);
+      justify-items:stretch;
+    }
+
+    @media (max-width:900px){
+      header{flex-direction:column;align-items:flex-start}
+      .ctaRow{width:100%}
+    }
+
     .btn{
       border:1px solid var(--stroke);
       background:rgba(255,255,255,.03);
@@ -64,9 +77,11 @@
       font-size:13px;
       display:inline-flex;
       align-items:center;
+      justify-content:center;
       gap:8px;
       transition:transform .08s ease, background .2s ease, border-color .2s ease;
       -webkit-tap-highlight-color:transparent;
+      white-space:nowrap;
     }
     .btn:active{transform:translateY(1px)}
     .btn:hover{background:rgba(255,255,255,.06)}
@@ -76,10 +91,7 @@
     }
 
     .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:10px}
-    @media (max-width:900px){
-      .grid{grid-template-columns:1fr}
-      .ctaRow{justify-content:flex-start}
-    }
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
 
     .card{
       border:1px solid var(--stroke);
@@ -165,10 +177,7 @@
     }
     .miniBtn:active{transform:translateY(1px)}
 
-    .trust{
-      margin-top:14px;border:1px solid var(--stroke);
-      background:rgba(0,0,0,.18);border-radius:16px;padding:12px;
-    }
+    .trust{margin-top:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18);border-radius:16px;padding:12px}
     .trust h3{margin:0 0 8px;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
     .trust ul{margin:0;padding-left:18px}
     .trust li{margin:6px 0;color:var(--muted);font-size:13px;line-height:1.45}
@@ -222,46 +231,22 @@
       align-items:center;
       gap:6px;
       text-decoration:none;
+      border-bottom:none;
     }
     .iconBtn:hover{background:rgba(255,255,255,.06)}
     .foot{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.55}
 
-    /* ✅ Mobile header layout: stacked brand + 3-across buttons */
-@media (max-width: 640px){
-  header{
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 10px 0 10px;
-  }
-
-  .brand{
-    width: 100%;
-  }
-
-  /* Allow subtitle to wrap fully */
-  .brandText p{
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    max-width: 100%;
-  }
-
-  /* 3-across button grid */
-  .ctaRow{
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-
-  .ctaRow .btn{
-    width: 100%;
-    justify-content: center;
-    padding: 10px 6px;
-    font-size: 12.5px;
-  }
-}
+    .toast{
+      margin-top:10px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.25);
+      color:var(--muted);
+      padding:10px 12px;
+      border-radius:14px;
+      font-size:12px;
+      display:none;
+    }
+    .toast.show{display:block}
   </style>
 </head>
 
@@ -269,14 +254,7 @@
   <div class="wrap">
     <header>
       <div class="brand">
-        <!-- ✅ Token logo image -->
-        <img
-          class="logo"
-          id="tokenLogo"
-          src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg"
-          alt="JACKPOT token logo"
-          loading="eager"
-        />
+        <img class="logoImg" alt="Jackpot logo" src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
         <div class="brandText">
           <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
           <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
@@ -284,12 +262,8 @@
       </div>
 
       <div class="ctaRow">
-        <!-- ✅ Updated community link -->
         <a class="btn" href="https://x.com/i/communities/2003560731950612759" target="_blank" rel="noopener">Community ↗</a>
-
-        <!-- ✅ New Telegram button -->
         <a class="btn" href="https://t.me/JackpotCoinCto" target="_blank" rel="noopener">Telegram ↗</a>
-
         <a class="btn btnPrimary" href="https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
       </div>
     </header>
@@ -350,6 +324,8 @@
         <div class="foot">
           Always verify the contract address and transactions via official links.
         </div>
+
+        <div class="toast" id="toast"></div>
       </section>
 
       <aside class="card">
@@ -368,103 +344,105 @@
   </div>
 
   <script>
-  const CONFIG = {
-    api: "/.netlify/functions/get-winners",
-    solscanTxBase: "https://solscan.io/tx/",
-    solscanAccountBase: "https://solscan.io/account/",
-    contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
+    const CONFIG = {
+      api: "/.netlify/functions/get-winners",
+      solscanTxBase: "https://solscan.io/tx/",
+      solscanAccountBase: "https://solscan.io/account/",
+      contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
+      community: "https://x.com/i/communities/2003560731950612759",
+      telegram: "https://t.me/JackpotCoinCto",
+      trade: "https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
+      site: "https://www.jackpotcoin.fun/",
+      cadenceMs: 15 * 60 * 1000, // fallback until API loads
+    };
 
-    // UPDATED LINKS
-    community: "https://x.com/i/communities/2003560731950612759",
-    tg: "https://t.me/JackpotCoinCto",
-    trade: "https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
-    site: "https://www.jackpotcoin.fun/",
+    let lastPayoutUTC_FROM_API = null;
 
-    cadenceMs: 15 * 60 * 1000, // fallback until API loads
-  };
-
-  let lastPayoutUTC_FROM_API = null;
-
-  function pad2(n){ return String(n).padStart(2, "0"); }
-  function shortAddr(a){ return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4); }
-  function utcString(iso){ try { return new Date(iso).toUTCString(); } catch { return ""; } }
-  function minutesAgo(iso){
-    if(!iso) return null;
-    const ms = Date.now() - Date.parse(iso);
-    if (!Number.isFinite(ms)) return null;
-    return Math.max(0, Math.floor(ms / 60000));
-  }
-  function formatUtcHM(ms){
-    const d = new Date(ms);
-    return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
-  }
-
-  function computeNextDrawMs(nowMs, lastPayoutUTC){
-    const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
-    if (!Number.isNaN(lastMs)) {
-      if (nowMs <= lastMs) return lastMs + CONFIG.cadenceMs;
-      const elapsed = nowMs - lastMs;
-      const steps = Math.floor(elapsed / CONFIG.cadenceMs) + 1;
-      return lastMs + steps * CONFIG.cadenceMs;
+    function pad2(n){ return String(n).padStart(2, "0"); }
+    function shortAddr(a){ return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4); }
+    function utcString(iso){ try { return new Date(iso).toUTCString(); } catch { return ""; } }
+    function minutesAgo(iso){
+      if(!iso) return null;
+      const ms = Date.now() - Date.parse(iso);
+      if (!Number.isFinite(ms)) return null;
+      return Math.max(0, Math.floor(ms / 60000));
     }
-    return Math.ceil(nowMs / CONFIG.cadenceMs) * CONFIG.cadenceMs;
-  }
-
-  function tickCountdown(){
-    const now = Date.now();
-    const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
-    const diff = Math.max(0, next - now);
-
-    const totalSec = Math.floor(diff / 1000);
-    const minutes = Math.floor(totalSec / 60);
-    const seconds = totalSec % 60;
-
-    document.getElementById("cdMin").textContent = pad2(minutes);
-    document.getElementById("cdSec").textContent = pad2(seconds);
-    document.getElementById("nextUtc").textContent = formatUtcHM(next);
-  }
-
-  setInterval(tickCountdown, 250);
-  tickCountdown();
-
-  document.getElementById("copyBtn").addEventListener("click", async () => {
-    const btn = document.getElementById("copyBtn");
-    try{
-      await navigator.clipboard.writeText(CONFIG.contract);
-      const old = btn.textContent;
-      btn.textContent = "Copied";
-      setTimeout(() => btn.textContent = old, 900);
-    }catch(e){
-      alert("Copy failed. Please copy manually.");
+    function formatUtcHM(ms){
+      const d = new Date(ms);
+      return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
     }
-  });
 
-  function setUpdatedBadge(iso){
-    const el = document.getElementById("updatedBadge");
-    el.innerHTML = iso ? `<strong>Updated</strong>: ${utcString(iso)}` : `<strong>Updated</strong>: —`;
-  }
-
-  function setStatus(data){
-    const live = document.getElementById("liveStatus");
-    const last = document.getElementById("lastPayout");
-    const walletLink = document.getElementById("payoutWalletLink");
-
-    walletLink.href = data?.payoutWalletUrl || "#";
-
-    const m = minutesAgo(data?.lastPayoutUTC);
-    if (m === null) {
-      live.textContent = "No payout detected yet";
-      last.textContent = "—";
-    } else {
-      live.textContent = "Live";
-      last.textContent = `${m}m ago`;
+    function showToast(msg){
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => el.classList.remove("show"), 2200);
     }
-  }
 
-  function xShareUrl(w){
-    const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
-    const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "");
-    const text =
+    function computeNextDrawMs(nowMs, lastPayoutUTC){
+      const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
+      if (!Number.isNaN(lastMs)) {
+        if (nowMs <= lastMs) return lastMs + CONFIG.cadenceMs;
+        const elapsed = nowMs - lastMs;
+        const steps = Math.floor(elapsed / CONFIG.cadenceMs) + 1;
+        return lastMs + steps * CONFIG.cadenceMs;
+      }
+      return Math.ceil(nowMs / CONFIG.cadenceMs) * CONFIG.cadenceMs;
+    }
+
+    function tickCountdown(){
+      const now = Date.now();
+      const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
+      const diff = Math.max(0, next - now);
+      const totalSec = Math.floor(diff / 1000);
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+
+      document.getElementById("cdMin").textContent = pad2(minutes);
+      document.getElementById("cdSec").textContent = pad2(seconds);
+      document.getElementById("nextUtc").textContent = formatUtcHM(next);
+    }
+    setInterval(tickCountdown, 250);
+    tickCountdown();
+
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("copyBtn");
+      try{
+        await navigator.clipboard.writeText(CONFIG.contract);
+        const old = btn.textContent;
+        btn.textContent = "Copied";
+        setTimeout(() => btn.textContent = old, 900);
+      }catch(e){
+        alert("Copy failed. Please copy manually.");
+      }
+    });
+
+    function setUpdatedBadge(iso){
+      const el = document.getElementById("updatedBadge");
+      el.innerHTML = iso ? `<strong>Updated</strong>: ${utcString(iso)}` : `<strong>Updated</strong>: —`;
+    }
+
+    function setStatus(data){
+      const live = document.getElementById("liveStatus");
+      const last = document.getElementById("lastPayout");
+      const walletLink = document.getElementById("payoutWalletLink");
+      walletLink.href = data?.payoutWalletUrl || "#";
+
+      if (data?.error === "feed_unavailable") {
+        live.textContent = "Feed unstable";
+      } else {
+        live.textContent = "Live";
+      }
+
+      const m = minutesAgo(data?.lastPayoutUTC);
+      last.textContent = (m === null) ? "—" : `${m}m ago`;
+    }
+
+    function xShareUrl(w){
+      const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
+      const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "");
+      const text =
 `🎉 Jackpot winner paid on Solana
 💰 ${amt} SOL
 🔍 Proof: ${txUrl}
@@ -473,71 +451,48 @@ Join the community:
 ${CONFIG.community}
 
 Telegram:
-${CONFIG.tg}
+${CONFIG.telegram}
 
 Trade JACKPOT:
 ${CONFIG.trade}
 
 Live status:
 ${CONFIG.site}`;
-    return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
-  }
+      return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+    }
 
-  function winnerItem(w){
-    const walletFull = (w.wallet || "").trim();
-    const tx = (w.tx || "").trim();
-    const walletShort = shortAddr(walletFull);
+    function winnerItem(w){
+      const walletFull = (w.wallet || "").trim();
+      const tx = (w.tx || "").trim();
+      const walletShort = shortAddr(walletFull);
 
-    const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
-    const solscanTx = w.solscanUrl || (tx ? (CONFIG.solscanTxBase + tx) : null);
+      const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
+      const solscanTx = w.solscanUrl || (tx ? (CONFIG.solscanTxBase + tx) : null);
 
-    const amount = typeof w.amountSOL === "number" ? `${w.amountSOL.toFixed(4)} SOL` : (w.amountSOL || "—");
-    const when = w.whenUTC ? utcString(w.whenUTC) : "—";
+      const amount = typeof w.amountSOL === "number" ? `${w.amountSOL.toFixed(4)} SOL` : (w.amountSOL || "—");
+      const when = w.whenUTC ? utcString(w.whenUTC) : "—";
 
-    const li = document.createElement("li");
-    li.className = "win";
-    li.innerHTML = `
-      <div class="winLeft">
-        <div class="who" title="${walletFull}">
-          ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
+      const li = document.createElement("li");
+      li.className = "win";
+      li.innerHTML = `
+        <div class="winLeft">
+          <div class="who" title="${walletFull}">
+            ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
+          </div>
+          <div class="meta">
+            <span>${when}</span>
+            ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
+            ${solscanTx ? `<span>•</span><a class="iconBtn" href="${xShareUrl(w)}" target="_blank" rel="noopener">Share 𝕏 ↗</a>` : ""}
+          </div>
         </div>
-        <div class="meta">
-          <span>${when}</span>
-          ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
-          ${solscanTx ? `<span>•</span><a class="iconBtn" href="${xShareUrl(w)}" target="_blank" rel="noopener">Share 𝕏 ↗</a>` : ""}
-        </div>
-      </div>
-      <div class="amt">${amount}</div>
-    `;
-    return li;
-  }
+        <div class="amt">${amount}</div>
+      `;
+      return li;
+    }
 
-  async function loadWinners(){
-    const list = document.getElementById("winnersList");
-
-    try{
-      // cache-bust so you get near-immediate payouts
-      const url = CONFIG.api + "?t=" + Date.now();
-      const res = await fetch(url, { cache: "no-store" });
-      if(!res.ok) throw new Error("Failed to fetch live winners feed");
-      const data = await res.json();
-
-      lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
-
-      // cadence from API
-      if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
-        CONFIG.cadenceMs = data.cadenceSeconds * 1000;
-      }
-      document.getElementById("cadenceText").textContent =
-        `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
-
-      setUpdatedBadge(data.updatedUTC);
-      setStatus(data);
-
-      const winners = Array.isArray(data.winners) ? data.winners : [];
-
-      list.innerHTML = "";
-      if (winners.length === 0) {
+    function renderWinners(listEl, winners){
+      listEl.innerHTML = "";
+      if (!winners.length) {
         const empty = document.createElement("li");
         empty.className = "win";
         empty.innerHTML = `
@@ -546,32 +501,73 @@ ${CONFIG.site}`;
             <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
           </div>
           <div class="amt">—</div>`;
-        list.appendChild(empty);
+        listEl.appendChild(empty);
         return;
       }
-
-      winners.forEach(w => list.appendChild(winnerItem(w)));
-
-    } catch (e) {
-      setUpdatedBadge(null);
-      document.getElementById("liveStatus").textContent = "Feed unavailable";
-      list.innerHTML = "";
-      const err = document.createElement("li");
-      err.className = "win";
-      err.innerHTML = `
-        <div class="winLeft">
-          <div class="who">Unable to load live winners</div>
-          <div class="meta">Refresh in a moment. If it persists, RPC may be rate-limiting.</div>
-        </div>
-        <div class="amt">—</div>`;
-      list.appendChild(err);
+      winners.forEach(w => listEl.appendChild(winnerItem(w)));
     }
-  }
 
-  loadWinners();
+    // show last good winners immediately on load (better UX)
+    (function bootFromStorage(){
+      const list = document.getElementById("winnersList");
+      const key = "jackpot_last_good_payload_v1";
+      try{
+        const saved = JSON.parse(localStorage.getItem(key) || "null");
+        if (saved?.winners?.length) {
+          setUpdatedBadge(saved.updatedUTC || null);
+          setStatus(saved);
+          renderWinners(list, saved.winners);
+        }
+      }catch{}
+    })();
 
-  // Poll a bit faster now that caching is disabled
-  setInterval(loadWinners, 15000);
-</script>
+    async function loadWinners(){
+      const list = document.getElementById("winnersList");
+      const keyLastGood = "jackpot_last_good_payload_v1";
+
+      try{
+        const res = await fetch(CONFIG.api, { cache: "no-store" });
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        // if feed is unstable, DO NOT wipe UI — just toast it
+        if (data?.error === "feed_unavailable") {
+          showToast("RPC hiccup — retrying…");
+          setStatus(data);
+          return;
+        }
+
+        lastPayoutUTC_FROM_API = data.lastPayoutUTC || null;
+
+        if (typeof data.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
+          CONFIG.cadenceMs = data.cadenceSeconds * 1000;
+        }
+        document.getElementById("cadenceText").textContent =
+          `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
+
+        setUpdatedBadge(data.updatedUTC);
+        setStatus(data);
+
+        const winners = Array.isArray(data.winners) ? data.winners : [];
+        renderWinners(list, winners);
+
+        // persist last good payload (helps refresh + temporary RPC issues)
+        localStorage.setItem(keyLastGood, JSON.stringify({
+          updatedUTC: data.updatedUTC,
+          payoutWalletUrl: data.payoutWalletUrl,
+          lastPayoutUTC: data.lastPayoutUTC,
+          winners
+        }));
+
+      }catch(e){
+        showToast("Feed unavailable — will retry");
+        // IMPORTANT: do not clear winners on error
+        document.getElementById("liveStatus").textContent = "Feed unstable";
+      }
+    }
+
+    loadWinners();
+    setInterval(loadWinners, 12_000); // faster UX without crushing RPC (server caches)
+  </script>
 </body>
 </html>
