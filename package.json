@@ -1,0 +1,8 @@
+{
+  "name": "jackpot-token",
+  "version": "1.0.0",
+  "description": "JACKPOT Token - Transparent SOL Payouts",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
