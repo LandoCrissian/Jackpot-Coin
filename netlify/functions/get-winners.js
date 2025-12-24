@@ -14,13 +14,13 @@ const RPC_ENDPOINTS = [
 const CACHE_MS = 12_000;
 
 // Cheap call: signatures
-const SIG_LIMIT = 220;
+const SIG_LIMIT = 1000;
 
 // Expensive calls: getTransaction
-const MAX_TX_FETCH = 90;
+const MAX_TX_FETCH = 500;
 
 const MAX_WINNERS_HARD = 500;     // hard cap
-const CONCURRENCY = 4;
+const CONCURRENCY = 3;
 
 // If new run finds 0 winners but we had winners recently, keep last list
 const STALE_OK_MS = 10 * 60 * 1000;
@@ -277,7 +277,8 @@ exports.handler = async (event) => {
       }
 
       // capture oldest payout timestamp we saw in this scan (approx window)
-      if (whenUTC) trackedOldestUTC = whenUTC;
+      if (whenUTC && (!trackedOldestUTC || Date.parse(whenUTC) < Date.parse(trackedOldestUTC))) { trackedOldestUTC = whenUTC;
+}
 
       if (winners.length >= MAX_WINNERS_HARD) break;
     }
