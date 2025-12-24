@@ -1,4 +1,4 @@
-<!doctype html>
+no<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -562,6 +562,32 @@ ${CONFIG.site}`;
         const res = await fetch(`${CONFIG.api}?limit=200`, { cache: "no-store" });
         if(!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
+
+        // ===============================
+// TOTAL PAID + SOL PRICE (NEW)
+// ===============================
+const totalPaidEl = document.getElementById("totalPaid");
+const solPriceEl  = document.getElementById("solPrice");
+
+if (typeof data?.solUsd === "number") {
+  solPriceEl.textContent = `$${data.solUsd.toFixed(2)}`;
+} else {
+  solPriceEl.textContent = "—";
+}
+
+if (typeof data?.totalPaidSOLTracked === "number") {
+  const sol = data.totalPaidSOLTracked;
+  const usd =
+    (typeof data?.totalPaidUSDTracked === "number")
+      ? data.totalPaidUSDTracked
+      : null;
+
+  totalPaidEl.textContent = usd !== null
+    ? `${sol.toFixed(4)} SOL (~$${usd.toFixed(2)})`
+    : `${sol.toFixed(4)} SOL`;
+} else {
+  totalPaidEl.textContent = "—";
+}
 
         // ✅ only update last payout if valid (prevents timer jumping)
         if (data?.lastPayoutUTC) lastPayoutUTC_FROM_API = data.lastPayoutUTC;
