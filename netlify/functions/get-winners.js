@@ -1,36 +1,29 @@
 // netlify/functions/get-winners.js
-// JackpotCoin winners feed (Helius-first) with stable caching + merge protection.
-// Goals:
-// 1) Always return a stable winners list (never blank due to RPC hiccups)
-// 2) Return many payouts (default 100; supports ?limit=)
-// 3) Keep RPC load controlled (cap expensive getTransaction calls)
+// Robust + low-RPC-load payout detection for JackpotCoin
+// Guarantees: if we have winners once, we NEVER return empty winners due to RPC hiccups.
+// Adds: totalPaidSOLTracked + SOL/USD price => totalPaidUSDTracked
 
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 
 const RPC_ENDPOINTS = [
-  process.env.HELIUS_RPC_URL,               // set this in Netlify env vars
+  process.env.HELIUS_RPC_URL, // set in Netlify env
   "https://api.mainnet-beta.solana.com",
 ].filter(Boolean);
 
-// Server cache (reduces RPC load)
+// Server-side cache (reduces RPC load)
 const CACHE_MS = 12_000;
 
-// Cheap call: signatures list
-const SIG_LIMIT_BASE = 220;  // baseline scan window
-const SIG_LIMIT_MAX  = 1200; // don’t go crazy on free tier
+// Cheap call: signatures
+const SIG_LIMIT = 220;
 
 // Expensive calls: getTransaction
-const MAX_TX_FETCH_BASE = 90;
-const MAX_TX_FETCH_MAX  = 420; // cap expensive calls
+const MAX_TX_FETCH = 90;
 
+const MAX_WINNERS_HARD = 500;     // hard cap
 const CONCURRENCY = 4;
 
 // If new run finds 0 winners but we had winners recently, keep last list
 const STALE_OK_MS = 10 * 60 * 1000;
-
-// Winners defaults/caps
-const DEFAULT_LIMIT = 100;  // what your UI should use for “all recent”
-const LIMIT_CAP     = 500;  // safety cap so responses don’t get huge
 
 let cache = { ts: 0, data: null };
 
@@ -128,72 +121,50 @@ function median(nums) {
   return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
 }
 
-function clampInt(n, min, max, fallback) {
-  const x = Number(n);
+function clampInt(n, lo, hi, fallback) {
+  const x = Number.parseInt(n, 10);
   if (!Number.isFinite(x)) return fallback;
-  return Math.min(max, Math.max(min, Math.floor(x)));
+  return Math.max(lo, Math.min(hi, x));
 }
 
-function parseLimit(event) {
-  const raw = event?.queryStringParameters?.limit;
-  return clampInt(raw, 5, LIMIT_CAP, DEFAULT_LIMIT);
-}
-
-function normalizeWinner(w) {
-  return {
-    wallet: (w.wallet || "").trim(),
-    amountSOL: typeof w.amountSOL === "number" ? w.amountSOL : Number(w.amountSOL),
-    whenUTC: w.whenUTC || null,
-    tx: (w.tx || "").trim(),
-    solscanUrl: w.solscanUrl || (w.tx ? `https://solscan.io/tx/${w.tx}` : null),
-  };
-}
-
-// Merge winners so list stays stable even if a future scan is incomplete.
-// Keyed by tx + wallet + amount (amount is optional but helps uniqueness if multiple transfers in one tx).
-function mergeWinners(newOnes, oldOnes, limit) {
-  const merged = [];
-  const seen = new Set();
-
-  function keyOf(w) {
-    const tx = w.tx || "";
-    const wallet = w.wallet || "";
-    const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(9) : "";
-    return `${tx}|${wallet}|${amt}`;
+async function getSolUsd() {
+  // CoinGecko simple price (no key). Cache will shield rate limits.
+  // If it fails, return null and UI can still show SOL total.
+  try {
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", {
+      headers: { "accept": "application/json" },
+    });
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null);
+    const p = j?.solana?.usd;
+    return (typeof p === "number" && p > 0) ? p : null;
+  } catch {
+    return null;
   }
-
-  // New first
-  for (const w of newOnes) {
-    const ww = normalizeWinner(w);
-    if (!ww.tx || !ww.wallet) continue;
-    const k = keyOf(ww);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    merged.push(ww);
-  }
-
-  // Then keep old (so you never “lose” history due to scan window)
-  for (const w of oldOnes) {
-    const ww = normalizeWinner(w);
-    if (!ww.tx || !ww.wallet) continue;
-    const k = keyOf(ww);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    merged.push(ww);
-  }
-
-  // Sort newest first by whenUTC; if missing, keep relative order
-  merged.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
-
-  return merged.slice(0, limit);
 }
 
-function buildResponse({ winners, cadenceSeconds, stale = false, error = null, message = null, limit }) {
+function buildResponse({
+  winners,
+  cadenceSeconds,
+  solUsd,
+  totalPaidSOLTracked,
+  trackedPayoutCount,
+  trackedOldestUTC,
+  stale = false,
+  error = null,
+  message = null,
+  winnerLimit = 20,
+}) {
   const lastPayoutUTC = winners[0]?.whenUTC || null;
 
   const nextDrawUTC = lastPayoutUTC
     ? new Date(Date.parse(lastPayoutUTC) + cadenceSeconds * 1000).toISOString()
     : null;
+
+  const totalPaidUSDTracked =
+    (typeof solUsd === "number" && typeof totalPaidSOLTracked === "number")
+      ? Number((totalPaidSOLTracked * solUsd).toFixed(2))
+      : null;
 
   const out = {
     updatedUTC: new Date().toISOString(),
@@ -202,8 +173,16 @@ function buildResponse({ winners, cadenceSeconds, stale = false, error = null, m
     lastPayoutUTC,
     nextDrawUTC,
     cadenceSeconds,
-    limit,
-    winners,
+
+    solUsd, // ✅ NEW
+    totalPaidSOLTracked: (typeof totalPaidSOLTracked === "number")
+      ? Number(totalPaidSOLTracked.toFixed(9))
+      : null,
+    totalPaidUSDTracked, // ✅ NEW
+    trackedPayoutCount: trackedPayoutCount || 0, // ✅ NEW
+    trackedOldestUTC: trackedOldestUTC || null,  // ✅ NEW
+
+    winners: winners.slice(0, winnerLimit),
     stale: !!stale,
   };
 
@@ -227,24 +206,22 @@ exports.handler = async (event) => {
   }
 
   const now = Date.now();
-  const limit = parseLimit(event);
 
   try {
-    // Short server cache to reduce RPC load
+    // winner limit from query (ex: ?limit=200)
+    const q = event.queryStringParameters || {};
+    const winnerLimit = clampInt(q.limit, 1, MAX_WINNERS_HARD, 200);
+
+    // short server cache to reduce RPC load
     if (cache.data && (now - cache.ts) < CACHE_MS) {
-      // If caller asked for a bigger limit than cached payload, we’ll try to refresh below instead.
-      if ((cache.data.limit || DEFAULT_LIMIT) >= limit) {
-        return { statusCode: 200, headers, body: JSON.stringify(cache.data) };
-      }
+      // if cached, still respect requested limit
+      const cached = { ...cache.data, winners: (cache.data.winners || []).slice(0, winnerLimit) };
+      return { statusCode: 200, headers, body: JSON.stringify(cached) };
     }
 
-    // Scale scan window slightly with limit
-    const SIG_LIMIT = Math.min(SIG_LIMIT_MAX, Math.max(SIG_LIMIT_BASE, Math.ceil(limit * 3)));
-    const MAX_TX_FETCH = Math.min(MAX_TX_FETCH_MAX, Math.max(MAX_TX_FETCH_BASE, Math.ceil(limit * 2)));
-
-    const sigs = await rpc("getSignaturesForAddress", [
-      PAYOUT_WALLET,
-      { limit: SIG_LIMIT },
+    const [sigs, solUsd] = await Promise.all([
+      rpc("getSignaturesForAddress", [PAYOUT_WALLET, { limit: SIG_LIMIT }]),
+      getSolUsd(),
     ]);
 
     const signatures = (sigs || [])
@@ -261,7 +238,10 @@ exports.handler = async (event) => {
       return { sig, tx };
     });
 
-    const found = [];
+    const winners = [];
+    let totalPaidSOLTracked = 0;
+    let trackedPayoutCount = 0;
+    let trackedOldestUTC = null;
 
     for (const item of txs) {
       if (!item?.tx || item.tx?.meta?.err) continue;
@@ -281,7 +261,10 @@ exports.handler = async (event) => {
 
             // allow tiny payouts too
             if (solAmount >= 0.0001 && solAmount <= 1000) {
-              found.push({
+              trackedPayoutCount += 1;
+              totalPaidSOLTracked += solAmount;
+
+              winners.push({
                 wallet: destination,
                 amountSOL: Number(solAmount.toFixed(9)),
                 whenUTC,
@@ -293,16 +276,13 @@ exports.handler = async (event) => {
         }
       }
 
-      // Stop early if we already have enough winners for requested limit
-      if (found.length >= limit) break;
+      // capture oldest payout timestamp we saw in this scan (approx window)
+      if (whenUTC) trackedOldestUTC = whenUTC;
+
+      if (winners.length >= MAX_WINNERS_HARD) break;
     }
 
-    // Sort newest-first
-    found.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
-
-    // Merge with cache (prevents shrinking/disappearing lists)
-    const cachedWinners = Array.isArray(cache.data?.winners) ? cache.data.winners : [];
-    const winners = mergeWinners(found, cachedWinners, limit);
+    winners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
 
     // derive cadence from payout gaps
     let cadenceSeconds = null;
@@ -322,50 +302,73 @@ exports.handler = async (event) => {
     }
     if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
-    const hadGoodCache = cachedWinners.length > 0;
+    const hadGoodCache = cache.data?.winners?.length > 0;
     const cacheFreshEnough = (now - (cache.ts || 0)) < STALE_OK_MS;
 
-    // ✅ If scan found nothing but we have cache, keep cache
-    if (found.length === 0 && hadGoodCache && cacheFreshEnough) {
+    // ✅ never return empty winners if we already had winners recently
+    if (winners.length === 0 && hadGoodCache && cacheFreshEnough) {
       const safe = buildResponse({
-        winners: cachedWinners.slice(0, limit),
-        cadenceSeconds: cache.data?.cadenceSeconds || cadenceSeconds,
+        winners: cache.data.winners,
+        cadenceSeconds: cache.data.cadenceSeconds || cadenceSeconds,
+        solUsd: cache.data.solUsd ?? solUsd ?? null,
+        totalPaidSOLTracked: cache.data.totalPaidSOLTracked ?? null,
+        trackedPayoutCount: cache.data.trackedPayoutCount ?? 0,
+        trackedOldestUTC: cache.data.trackedOldestUTC ?? null,
         stale: true,
         error: "feed_unstable",
         message: "RPC indexing/rate-limit — serving last known winners",
-        limit,
+        winnerLimit,
       });
       cache = { ts: now, data: safe };
       return { statusCode: 200, headers, body: JSON.stringify(safe) };
     }
 
-    const data = buildResponse({ winners, cadenceSeconds, limit });
-    cache = { ts: now, data };
+    const data = buildResponse({
+      winners,
+      cadenceSeconds,
+      solUsd,
+      totalPaidSOLTracked,
+      trackedPayoutCount,
+      trackedOldestUTC,
+      winnerLimit,
+    });
 
+    cache = { ts: now, data };
     return { statusCode: 200, headers, body: JSON.stringify(data) };
+
   } catch (e) {
     // ✅ if error, serve last known winners (stable UI)
+    const msg = String(e?.message || e);
+
     if (cache.data?.winners?.length) {
-      const safe = buildResponse({
-        winners: cache.data.winners.slice(0, limit),
-        cadenceSeconds: cache.data.cadenceSeconds || (15 * 60),
+      const safe = {
+        ...cache.data,
+        updatedUTC: new Date().toISOString(),
         stale: true,
         error: "feed_unstable",
-        message: String(e?.message || e),
-        limit,
-      });
+        message: msg,
+      };
       cache = { ts: now, data: safe };
       return { statusCode: 200, headers, body: JSON.stringify(safe) };
     }
 
-    const empty = buildResponse({
-      winners: [],
+    const empty = {
+      updatedUTC: new Date().toISOString(),
+      payoutWallet: PAYOUT_WALLET,
+      payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
+      lastPayoutUTC: null,
+      nextDrawUTC: null,
       cadenceSeconds: 15 * 60,
+      solUsd: null,
+      totalPaidSOLTracked: null,
+      totalPaidUSDTracked: null,
+      trackedPayoutCount: 0,
+      trackedOldestUTC: null,
+      winners: [],
       stale: true,
       error: "feed_unavailable",
-      message: String(e?.message || e),
-      limit,
-    });
+      message: msg,
+    };
     cache = { ts: now, data: empty };
     return { statusCode: 200, headers, body: JSON.stringify(empty) };
   }
