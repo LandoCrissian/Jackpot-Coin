@@ -255,6 +255,25 @@
       display:none;
     }
     .toast.show{display:block}
+
+    /* make the whole winners card not grow forever */
+aside.card{
+  max-height: 560px;      /* adjust */
+  display:flex;
+  flex-direction:column;
+}
+
+/* make only the list scroll */
+#winnersList{
+  overflow:auto;
+  max-height: 440px;      /* adjust */
+  padding-right: 6px;
+}
+
+/* nicer iOS scrolling */
+#winnersList{
+  -webkit-overflow-scrolling: touch;
+}
   </style>
 </head>
 
