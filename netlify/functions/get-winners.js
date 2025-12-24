@@ -285,6 +285,28 @@ exports.handler = async (event) => {
 
     winners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
 
+    // after: winners.sort(...)
+
+function mergeWinners(newOnes, oldOnes) {
+  const m = new Map();
+  for (const w of (oldOnes || [])) {
+    if (w?.tx) m.set(w.tx, w);
+  }
+  for (const w of (newOnes || [])) {
+    if (w?.tx) m.set(w.tx, w);
+  }
+  return Array.from(m.values()).sort(
+    (a,b) => Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)
+  );
+}
+
+// ✅ never lose winners due to partial RPC fetch
+if (cache.data?.winners?.length) {
+  const merged = mergeWinners(winners, cache.data.winners);
+  winners.length = 0;
+  winners.push(...merged);
+}
+
     // derive cadence from payout gaps
     let cadenceSeconds = null;
     if (winners.length >= 3) {
