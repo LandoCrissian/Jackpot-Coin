@@ -5,10 +5,9 @@
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 
 const RPC_ENDPOINTS = [
+  process.env.HELIUS_RPC_URL,
   "https://api.mainnet-beta.solana.com",
-  "https://rpc.ankr.com/solana",
-  "https://solana.public-rpc.com",
-];
+].filter(Boolean);
 
 // Server-side cache (reduces RPC load)
 const CACHE_MS = 12_000;
