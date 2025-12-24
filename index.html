@@ -555,7 +555,7 @@ ${CONFIG.site}`;
       const keyLastGood = "jackpot_last_good_payload_v2";
 
       try{
-        const res = await fetch(CONFIG.api, { cache: "no-store" });
+        const res = await fetch(`${CONFIG.api}?limit=200`, { cache: "no-store" });
         if(!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
 
