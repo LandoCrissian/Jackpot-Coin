@@ -2,6 +2,7 @@
 // Robust + low-RPC-load payout detection for JackpotCoin
 // Guarantees: if we have winners once, we NEVER return empty winners due to RPC hiccups.
 // Adds: totalPaidSOLTracked + SOL/USD price => totalPaidUSDTracked
+// Fixes: dedupe + merge winners across runs + totals never decrease (no jumping)
 
 const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 
@@ -19,7 +20,7 @@ const SIG_LIMIT = 1000;
 // Expensive calls: getTransaction
 const MAX_TX_FETCH = 500;
 
-const MAX_WINNERS_HARD = 500;     // hard cap
+const MAX_WINNERS_HARD = 500; // hard cap
 const CONCURRENCY = 3;
 
 // If new run finds 0 winners but we had winners recently, keep last list
@@ -131,9 +132,10 @@ async function getSolUsd() {
   // CoinGecko simple price (no key). Cache will shield rate limits.
   // If it fails, return null and UI can still show SOL total.
   try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", {
-      headers: { "accept": "application/json" },
-    });
+    const r = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+      { headers: { accept: "application/json" } }
+    );
     if (!r.ok) return null;
     const j = await r.json().catch(() => null);
     const p = j?.solana?.usd;
@@ -141,6 +143,52 @@ async function getSolUsd() {
   } catch {
     return null;
   }
+}
+
+/** Deduplicate by tx signature, keeping the newest entry if duplicates occur */
+function dedupeByTx(winners) {
+  const m = new Map();
+  for (const w of (winners || [])) {
+    if (!w?.tx) continue;
+    const prev = m.get(w.tx);
+    if (!prev) {
+      m.set(w.tx, w);
+      continue;
+    }
+    // keep the one with later whenUTC if available
+    const a = Date.parse(prev.whenUTC || 0);
+    const b = Date.parse(w.whenUTC || 0);
+    if (b > a) m.set(w.tx, w);
+  }
+  return Array.from(m.values());
+}
+
+/** Merge new scan with prior cached winners so we never "lose" payouts during RPC hiccups */
+function mergeWinners(newOnes, oldOnes) {
+  const combined = dedupeByTx([...(oldOnes || []), ...(newOnes || [])]);
+  combined.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
+  return combined.slice(0, MAX_WINNERS_HARD);
+}
+
+/** Compute totals from a list of winners */
+function computeTotals(winners) {
+  let sol = 0;
+  let count = 0;
+  let oldestUTC = null;
+
+  for (const w of (winners || [])) {
+    const amt = Number(w?.amountSOL);
+    if (Number.isFinite(amt) && amt > 0) {
+      sol += amt;
+      count += 1;
+      const t = w.whenUTC ? Date.parse(w.whenUTC) : NaN;
+      if (Number.isFinite(t)) {
+        if (!oldestUTC || t < Date.parse(oldestUTC)) oldestUTC = w.whenUTC;
+      }
+    }
+  }
+
+  return { sol, count, oldestUTC };
 }
 
 function buildResponse({
@@ -174,15 +222,15 @@ function buildResponse({
     nextDrawUTC,
     cadenceSeconds,
 
-    solUsd, // ✅ NEW
+    solUsd,
     totalPaidSOLTracked: (typeof totalPaidSOLTracked === "number")
       ? Number(totalPaidSOLTracked.toFixed(9))
       : null,
-    totalPaidUSDTracked, // ✅ NEW
-    trackedPayoutCount: trackedPayoutCount || 0, // ✅ NEW
-    trackedOldestUTC: trackedOldestUTC || null,  // ✅ NEW
+    totalPaidUSDTracked,
+    trackedPayoutCount: trackedPayoutCount || 0,
+    trackedOldestUTC: trackedOldestUTC || null,
 
-    winners: winners.slice(0, winnerLimit),
+    winners: (winners || []).slice(0, winnerLimit),
     stale: !!stale,
   };
 
@@ -208,13 +256,11 @@ exports.handler = async (event) => {
   const now = Date.now();
 
   try {
-    // winner limit from query (ex: ?limit=200)
     const q = event.queryStringParameters || {};
     const winnerLimit = clampInt(q.limit, 1, MAX_WINNERS_HARD, 200);
 
     // short server cache to reduce RPC load
     if (cache.data && (now - cache.ts) < CACHE_MS) {
-      // if cached, still respect requested limit
       const cached = { ...cache.data, winners: (cache.data.winners || []).slice(0, winnerLimit) };
       return { statusCode: 200, headers, body: JSON.stringify(cached) };
     }
@@ -238,10 +284,7 @@ exports.handler = async (event) => {
       return { sig, tx };
     });
 
-    const winners = [];
-    let totalPaidSOLTracked = 0;
-    let trackedPayoutCount = 0;
-    let trackedOldestUTC = null;
+    const scannedWinners = [];
 
     for (const item of txs) {
       if (!item?.tx || item.tx?.meta?.err) continue;
@@ -259,12 +302,8 @@ exports.handler = async (event) => {
           if (source === PAYOUT_WALLET && destination && destination !== PAYOUT_WALLET) {
             const solAmount = lamports / 1e9;
 
-            // allow tiny payouts too
             if (solAmount >= 0.0001 && solAmount <= 1000) {
-              trackedPayoutCount += 1;
-              totalPaidSOLTracked += solAmount;
-
-              winners.push({
+              scannedWinners.push({
                 wallet: destination,
                 amountSOL: Number(solAmount.toFixed(9)),
                 whenUTC,
@@ -276,41 +315,37 @@ exports.handler = async (event) => {
         }
       }
 
-      // capture oldest payout timestamp we saw in this scan (approx window)
-      if (whenUTC && (!trackedOldestUTC || Date.parse(whenUTC) < Date.parse(trackedOldestUTC))) { trackedOldestUTC = whenUTC;
-}
-
-      if (winners.length >= MAX_WINNERS_HARD) break;
+      if (scannedWinners.length >= MAX_WINNERS_HARD) break;
     }
 
-    winners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
+    // sort + dedupe current scan first
+    scannedWinners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
+    const scanDeduped = dedupeByTx(scannedWinners).slice(0, MAX_WINNERS_HARD);
+    scanDeduped.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
 
-    // after: winners.sort(...)
+    // ✅ merge with cached so we never "lose" payouts due to partial RPC fetch
+    const mergedWinners = cache.data?.winners?.length
+      ? mergeWinners(scanDeduped, cache.data.winners)
+      : scanDeduped;
 
-function mergeWinners(newOnes, oldOnes) {
-  const m = new Map();
-  for (const w of (oldOnes || [])) {
-    if (w?.tx) m.set(w.tx, w);
-  }
-  for (const w of (newOnes || [])) {
-    if (w?.tx) m.set(w.tx, w);
-  }
-  return Array.from(m.values()).sort(
-    (a,b) => Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)
-  );
-}
+    // ✅ totals from merged list (stable)
+    let totals = computeTotals(mergedWinners);
 
-// ✅ never lose winners due to partial RPC fetch
-if (cache.data?.winners?.length) {
-  const merged = mergeWinners(winners, cache.data.winners);
-  winners.length = 0;
-  winners.push(...merged);
-}
+    // ✅ clamp totals so they never decrease
+    if (typeof cache.data?.totalPaidSOLTracked === "number") {
+      totals.sol = Math.max(totals.sol, cache.data.totalPaidSOLTracked);
+    }
+    if (typeof cache.data?.trackedPayoutCount === "number") {
+      totals.count = Math.max(totals.count, cache.data.trackedPayoutCount);
+    }
+    if (!totals.oldestUTC && cache.data?.trackedOldestUTC) {
+      totals.oldestUTC = cache.data.trackedOldestUTC;
+    }
 
-    // derive cadence from payout gaps
+    // derive cadence from payout gaps (use merged list so cadence is stable too)
     let cadenceSeconds = null;
-    if (winners.length >= 3) {
-      const times = winners
+    if (mergedWinners.length >= 3) {
+      const times = mergedWinners
         .map(w => Date.parse(w.whenUTC))
         .filter(Number.isFinite)
         .sort((a, b) => b - a);
@@ -329,7 +364,7 @@ if (cache.data?.winners?.length) {
     const cacheFreshEnough = (now - (cache.ts || 0)) < STALE_OK_MS;
 
     // ✅ never return empty winners if we already had winners recently
-    if (winners.length === 0 && hadGoodCache && cacheFreshEnough) {
+    if (mergedWinners.length === 0 && hadGoodCache && cacheFreshEnough) {
       const safe = buildResponse({
         winners: cache.data.winners,
         cadenceSeconds: cache.data.cadenceSeconds || cadenceSeconds,
@@ -347,12 +382,12 @@ if (cache.data?.winners?.length) {
     }
 
     const data = buildResponse({
-      winners,
+      winners: mergedWinners,
       cadenceSeconds,
       solUsd,
-      totalPaidSOLTracked,
-      trackedPayoutCount,
-      trackedOldestUTC,
+      totalPaidSOLTracked: totals.sol,
+      trackedPayoutCount: totals.count,
+      trackedOldestUTC: totals.oldestUTC,
       winnerLimit,
     });
 
@@ -360,9 +395,9 @@ if (cache.data?.winners?.length) {
     return { statusCode: 200, headers, body: JSON.stringify(data) };
 
   } catch (e) {
-    // ✅ if error, serve last known winners (stable UI)
     const msg = String(e?.message || e);
 
+    // ✅ if error, serve last known winners (stable UI)
     if (cache.data?.winners?.length) {
       const safe = {
         ...cache.data,
