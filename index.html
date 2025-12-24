@@ -514,22 +514,24 @@ ${CONFIG.site}`;
     }
 
     function renderWinners(listEl, winners){
-      const top5 = (Array.isArray(winners) ? winners : []).slice(0, 5); // ✅ ALWAYS 5
-      listEl.innerHTML = "";
-      if (!top5.length) {
-        const empty = document.createElement("li");
-        empty.className = "win";
-        empty.innerHTML = `
-          <div class="winLeft">
-            <div class="who">No payouts detected yet</div>
-            <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
-          </div>
-          <div class="amt">—</div>`;
-        listEl.appendChild(empty);
-        return;
-      }
-      top5.forEach(w => listEl.appendChild(winnerItem(w)));
-    }
+  const items = Array.isArray(winners) ? winners : []; // ✅ no slicing
+  listEl.innerHTML = "";
+
+  if (!items.length) {
+    const empty = document.createElement("li");
+    empty.className = "win";
+    empty.innerHTML = `
+      <div class="winLeft">
+        <div class="who">No payouts detected yet</div>
+        <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
+      </div>
+      <div class="amt">—</div>`;
+    listEl.appendChild(empty);
+    return;
+  }
+
+  items.forEach(w => listEl.appendChild(winnerItem(w)));
+}
 
     // show last good winners immediately on load
     (function bootFromStorage(){
