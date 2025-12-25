@@ -1,17 +1,24 @@
 // netlify/functions/get-winners.js
 // Robust + low-RPC-load payout detection for JackpotCoin
-// Guarantees: if we have winners once, we NEVER return empty winners due to RPC hiccups.
-// Adds: totalPaidSOLTracked + SOL/USD price => totalPaidUSDTracked
-// Fixes: dedupe + merge winners across runs + totals never decrease (no jumping)
+// ✅ Persistent state via Netlify Blobs (no reset/jumps across refresh/visitors)
+// ✅ Wallet transition mode: show legacy payouts until new wallet has a first payout
+// ✅ Dedupe + merge across runs + totals never decrease
 
-const PAYOUT_WALLET = "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK";
+const { getStore } = require("@netlify/blobs");
+
+const PAYOUT_WALLET = "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK"; // CTO wallet (active)
+
+// OPTIONAL: set this to the OLD wallet to run “A” transition mode.
+// If active wallet has 0 payouts detected, we will show legacy payouts until active starts paying.
+const LEGACY_PAYOUT_WALLET =
+  process.env.LEGACY_PAYOUT_WALLET || "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
 
 const RPC_ENDPOINTS = [
   process.env.HELIUS_RPC_URL, // set in Netlify env
   "https://api.mainnet-beta.solana.com",
 ].filter(Boolean);
 
-// Server-side cache (reduces RPC load)
+// Server-side in-memory cache (reduces RPC load per warm instance)
 const CACHE_MS = 12_000;
 
 // Cheap call: signatures
@@ -26,6 +33,7 @@ const CONCURRENCY = 3;
 // If new run finds 0 winners but we had winners recently, keep last list
 const STALE_OK_MS = 10 * 60 * 1000;
 
+// In-memory cache (still useful, but not relied on)
 let cache = { ts: 0, data: null };
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -129,8 +137,6 @@ function clampInt(n, lo, hi, fallback) {
 }
 
 async function getSolUsd() {
-  // CoinGecko simple price (no key). Cache will shield rate limits.
-  // If it fails, return null and UI can still show SOL total.
   try {
     const r = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
@@ -145,17 +151,13 @@ async function getSolUsd() {
   }
 }
 
-/** Deduplicate by tx signature, keeping the newest entry if duplicates occur */
+/** Deduplicate by tx signature */
 function dedupeByTx(winners) {
   const m = new Map();
   for (const w of (winners || [])) {
     if (!w?.tx) continue;
     const prev = m.get(w.tx);
-    if (!prev) {
-      m.set(w.tx, w);
-      continue;
-    }
-    // keep the one with later whenUTC if available
+    if (!prev) { m.set(w.tx, w); continue; }
     const a = Date.parse(prev.whenUTC || 0);
     const b = Date.parse(w.whenUTC || 0);
     if (b > a) m.set(w.tx, w);
@@ -163,7 +165,7 @@ function dedupeByTx(winners) {
   return Array.from(m.values());
 }
 
-/** Merge new scan with prior cached winners so we never "lose" payouts during RPC hiccups */
+/** Merge new scan with prior winners */
 function mergeWinners(newOnes, oldOnes) {
   const combined = dedupeByTx([...(oldOnes || []), ...(newOnes || [])]);
   combined.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
@@ -187,11 +189,12 @@ function computeTotals(winners) {
       }
     }
   }
-
   return { sol, count, oldestUTC };
 }
 
 function buildResponse({
+  payoutWallet,
+  payoutWalletUrl,
   winners,
   cadenceSeconds,
   solUsd,
@@ -202,6 +205,8 @@ function buildResponse({
   error = null,
   message = null,
   winnerLimit = 20,
+  mode = "active", // "active" | "legacy"
+  legacyWallet = null,
 }) {
   const lastPayoutUTC = winners[0]?.whenUTC || null;
 
@@ -216,8 +221,8 @@ function buildResponse({
 
   const out = {
     updatedUTC: new Date().toISOString(),
-    payoutWallet: PAYOUT_WALLET,
-    payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
+    payoutWallet,
+    payoutWalletUrl,
     lastPayoutUTC,
     nextDrawUTC,
     cadenceSeconds,
@@ -232,12 +237,70 @@ function buildResponse({
 
     winners: (winners || []).slice(0, winnerLimit),
     stale: !!stale,
+
+    mode,              // ✅ tells UI if we're still in legacy display mode
+    legacyWallet,      // ✅ for transparency
   };
 
   if (error) out.error = error;
   if (message) out.message = message;
 
   return out;
+}
+
+async function scanWalletForWinners(wallet) {
+  const sigs = await rpc("getSignaturesForAddress", [wallet, { limit: SIG_LIMIT }]);
+
+  const signatures = (sigs || [])
+    .filter(s => s && !s.err && s.signature)
+    .map(s => s.signature);
+
+  const toFetch = signatures.slice(0, MAX_TX_FETCH);
+
+  const txs = await mapLimit(toFetch, CONCURRENCY, async (sig) => {
+    const tx = await rpc("getTransaction", [
+      sig,
+      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
+    ]);
+    return { sig, tx };
+  });
+
+  const scanned = [];
+
+  for (const item of txs) {
+    if (!item?.tx || item.tx?.meta?.err) continue;
+
+    const whenUTC = isoFromBlockTime(item.tx.blockTime) || null;
+    const allIxs = extractTransfers(item.tx);
+
+    for (const ix of allIxs) {
+      if (ix?.program === "system" && ix?.parsed?.type === "transfer") {
+        const info = ix.parsed.info || {};
+        const source = info.source;
+        const destination = info.destination;
+        const lamports = info.lamports;
+
+        if (source === wallet && destination && destination !== wallet) {
+          const solAmount = lamports / 1e9;
+          if (solAmount >= 0.0001 && solAmount <= 1000) {
+            scanned.push({
+              wallet: destination,
+              amountSOL: Number(solAmount.toFixed(9)),
+              whenUTC,
+              tx: item.sig,
+              solscanUrl: `https://solscan.io/tx/${item.sig}`,
+            });
+          }
+        }
+      }
+    }
+    if (scanned.length >= MAX_WINNERS_HARD) break;
+  }
+
+  scanned.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
+  const deduped = dedupeByTx(scanned).slice(0, MAX_WINNERS_HARD);
+  deduped.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
+  return deduped;
 }
 
 exports.handler = async (event) => {
@@ -255,97 +318,51 @@ exports.handler = async (event) => {
 
   const now = Date.now();
 
+  // Persistent store (shared across all visitors + cold starts)
+  const store = getStore("jackpot");
+  const stateKey = `state_v1_${PAYOUT_WALLET}`;
+
   try {
     const q = event.queryStringParameters || {};
     const winnerLimit = clampInt(q.limit, 1, MAX_WINNERS_HARD, 200);
 
-    // short server cache to reduce RPC load
+    // In-memory cache (fast path)
     if (cache.data && (now - cache.ts) < CACHE_MS) {
       const cached = { ...cache.data, winners: (cache.data.winners || []).slice(0, winnerLimit) };
       return { statusCode: 200, headers, body: JSON.stringify(cached) };
     }
 
-    const [sigs, solUsd] = await Promise.all([
-      rpc("getSignaturesForAddress", [PAYOUT_WALLET, { limit: SIG_LIMIT }]),
+    // Pull persisted state
+    const persisted = (await store.get(stateKey, { type: "json" }).catch(() => null)) || null;
+
+    const [solUsd, activeScan] = await Promise.all([
       getSolUsd(),
+      scanWalletForWinners(PAYOUT_WALLET),
     ]);
 
-    const signatures = (sigs || [])
-      .filter(s => s && !s.err && s.signature)
-      .map(s => s.signature);
+    // Merge with persisted winners so we never lose history
+    const mergedActive = persisted?.winners?.length
+      ? mergeWinners(activeScan, persisted.winners)
+      : activeScan;
 
-    const toFetch = signatures.slice(0, MAX_TX_FETCH);
+    // Compute totals from merged list
+    let totals = computeTotals(mergedActive);
 
-    const txs = await mapLimit(toFetch, CONCURRENCY, async (sig) => {
-      const tx = await rpc("getTransaction", [
-        sig,
-        { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
-      ]);
-      return { sig, tx };
-    });
-
-    const scannedWinners = [];
-
-    for (const item of txs) {
-      if (!item?.tx || item.tx?.meta?.err) continue;
-
-      const whenUTC = isoFromBlockTime(item.tx.blockTime) || null;
-      const allIxs = extractTransfers(item.tx);
-
-      for (const ix of allIxs) {
-        if (ix?.program === "system" && ix?.parsed?.type === "transfer") {
-          const info = ix.parsed.info || {};
-          const source = info.source;
-          const destination = info.destination;
-          const lamports = info.lamports;
-
-          if (source === PAYOUT_WALLET && destination && destination !== PAYOUT_WALLET) {
-            const solAmount = lamports / 1e9;
-
-            if (solAmount >= 0.0001 && solAmount <= 1000) {
-              scannedWinners.push({
-                wallet: destination,
-                amountSOL: Number(solAmount.toFixed(9)),
-                whenUTC,
-                tx: item.sig,
-                solscanUrl: `https://solscan.io/tx/${item.sig}`,
-              });
-            }
-          }
-        }
-      }
-
-      if (scannedWinners.length >= MAX_WINNERS_HARD) break;
+    // Clamp totals so they never decrease (across cold starts too)
+    if (typeof persisted?.totalPaidSOLTracked === "number") {
+      totals.sol = Math.max(totals.sol, persisted.totalPaidSOLTracked);
+    }
+    if (typeof persisted?.trackedPayoutCount === "number") {
+      totals.count = Math.max(totals.count, persisted.trackedPayoutCount);
+    }
+    if (!totals.oldestUTC && persisted?.trackedOldestUTC) {
+      totals.oldestUTC = persisted.trackedOldestUTC;
     }
 
-    // sort + dedupe current scan first
-    scannedWinners.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
-    const scanDeduped = dedupeByTx(scannedWinners).slice(0, MAX_WINNERS_HARD);
-    scanDeduped.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
-
-    // ✅ merge with cached so we never "lose" payouts due to partial RPC fetch
-    const mergedWinners = cache.data?.winners?.length
-      ? mergeWinners(scanDeduped, cache.data.winners)
-      : scanDeduped;
-
-    // ✅ totals from merged list (stable)
-    let totals = computeTotals(mergedWinners);
-
-    // ✅ clamp totals so they never decrease
-    if (typeof cache.data?.totalPaidSOLTracked === "number") {
-      totals.sol = Math.max(totals.sol, cache.data.totalPaidSOLTracked);
-    }
-    if (typeof cache.data?.trackedPayoutCount === "number") {
-      totals.count = Math.max(totals.count, cache.data.trackedPayoutCount);
-    }
-    if (!totals.oldestUTC && cache.data?.trackedOldestUTC) {
-      totals.oldestUTC = cache.data.trackedOldestUTC;
-    }
-
-    // derive cadence from payout gaps (use merged list so cadence is stable too)
+    // Cadence based on merged list (stable)
     let cadenceSeconds = null;
-    if (mergedWinners.length >= 3) {
-      const times = mergedWinners
+    if (mergedActive.length >= 3) {
+      const times = mergedActive
         .map(w => Date.parse(w.whenUTC))
         .filter(Number.isFinite)
         .sort((a, b) => b - a);
@@ -360,55 +377,104 @@ exports.handler = async (event) => {
     }
     if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
-    const hadGoodCache = cache.data?.winners?.length > 0;
-    const cacheFreshEnough = (now - (cache.ts || 0)) < STALE_OK_MS;
+    // WALLET TRANSITION MODE ("A"):
+    // If new wallet has 0 payouts detected, show legacy payouts until new wallet starts paying.
+    let mode = "active";
+    let winnersToShow = mergedActive;
+    let payoutWalletToShow = PAYOUT_WALLET;
+    let payoutWalletUrlToShow = `https://solscan.io/account/${PAYOUT_WALLET}`;
+    let legacyWallet = null;
 
-    // ✅ never return empty winners if we already had winners recently
-    if (mergedWinners.length === 0 && hadGoodCache && cacheFreshEnough) {
-      const safe = buildResponse({
-        winners: cache.data.winners,
-        cadenceSeconds: cache.data.cadenceSeconds || cadenceSeconds,
-        solUsd: cache.data.solUsd ?? solUsd ?? null,
-        totalPaidSOLTracked: cache.data.totalPaidSOLTracked ?? null,
-        trackedPayoutCount: cache.data.trackedPayoutCount ?? 0,
-        trackedOldestUTC: cache.data.trackedOldestUTC ?? null,
-        stale: true,
-        error: "feed_unstable",
-        message: "RPC indexing/rate-limit — serving last known winners",
-        winnerLimit,
+    if ((mergedActive.length === 0) && LEGACY_PAYOUT_WALLET && LEGACY_PAYOUT_WALLET !== PAYOUT_WALLET) {
+      mode = "legacy";
+      legacyWallet = LEGACY_PAYOUT_WALLET;
+
+      const legacyStateKey = `state_v1_${LEGACY_PAYOUT_WALLET}`;
+      const legacyPersisted = (await store.get(legacyStateKey, { type: "json" }).catch(() => null)) || null;
+      const legacyScan = await scanWalletForWinners(LEGACY_PAYOUT_WALLET);
+
+      const mergedLegacy = legacyPersisted?.winners?.length
+        ? mergeWinners(legacyScan, legacyPersisted.winners)
+        : legacyScan;
+
+      winnersToShow = mergedLegacy;
+      payoutWalletToShow = LEGACY_PAYOUT_WALLET;
+      payoutWalletUrlToShow = `https://solscan.io/account/${LEGACY_PAYOUT_WALLET}`;
+
+      // Persist legacy too (so it’s stable across refreshes)
+      const legacyTotals = computeTotals(mergedLegacy);
+      const legacyData = buildResponse({
+        payoutWallet: LEGACY_PAYOUT_WALLET,
+        payoutWalletUrl: payoutWalletUrlToShow,
+        winners: mergedLegacy,
+        cadenceSeconds: 15 * 60,
+        solUsd,
+        totalPaidSOLTracked: legacyTotals.sol,
+        trackedPayoutCount: legacyTotals.count,
+        trackedOldestUTC: legacyTotals.oldestUTC,
+        winnerLimit: MAX_WINNERS_HARD,
+        mode: "legacy",
+        legacyWallet: null,
       });
-      cache = { ts: now, data: safe };
-      return { statusCode: 200, headers, body: JSON.stringify(safe) };
+      await store.set(legacyStateKey, legacyData, { type: "json" }).catch(() => {});
     }
 
+    // Build final response
     const data = buildResponse({
-      winners: mergedWinners,
+      payoutWallet: payoutWalletToShow,
+      payoutWalletUrl: payoutWalletUrlToShow,
+      winners: winnersToShow,
       cadenceSeconds,
       solUsd,
       totalPaidSOLTracked: totals.sol,
       trackedPayoutCount: totals.count,
       trackedOldestUTC: totals.oldestUTC,
       winnerLimit,
+      mode,
+      legacyWallet,
     });
 
+    // Persist ACTIVE state (so every visitor sees stable output)
+    const persistActive = buildResponse({
+      payoutWallet: PAYOUT_WALLET,
+      payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
+      winners: mergedActive,
+      cadenceSeconds,
+      solUsd,
+      totalPaidSOLTracked: totals.sol,
+      trackedPayoutCount: totals.count,
+      trackedOldestUTC: totals.oldestUTC,
+      winnerLimit: MAX_WINNERS_HARD,
+      mode: "active",
+      legacyWallet: null,
+    });
+
+    await store.set(stateKey, persistActive, { type: "json" }).catch(() => {});
+
+    // Update in-memory cache too
     cache = { ts: now, data };
+
     return { statusCode: 200, headers, body: JSON.stringify(data) };
 
   } catch (e) {
     const msg = String(e?.message || e);
 
-    // ✅ if error, serve last known winners (stable UI)
-    if (cache.data?.winners?.length) {
-      const safe = {
-        ...cache.data,
-        updatedUTC: new Date().toISOString(),
-        stale: true,
-        error: "feed_unstable",
-        message: msg,
-      };
-      cache = { ts: now, data: safe };
-      return { statusCode: 200, headers, body: JSON.stringify(safe) };
-    }
+    // Try to serve persisted state if available
+    try {
+      const store = getStore("jackpot");
+      const persisted = await store.get(`state_v1_${PAYOUT_WALLET}`, { type: "json" });
+      if (persisted?.winners?.length) {
+        const safe = {
+          ...persisted,
+          updatedUTC: new Date().toISOString(),
+          stale: true,
+          error: "feed_unstable",
+          message: msg,
+        };
+        cache = { ts: now, data: safe };
+        return { statusCode: 200, headers, body: JSON.stringify(safe) };
+      }
+    } catch {}
 
     const empty = {
       updatedUTC: new Date().toISOString(),
@@ -426,7 +492,10 @@ exports.handler = async (event) => {
       stale: true,
       error: "feed_unavailable",
       message: msg,
+      mode: "active",
+      legacyWallet: null,
     };
+
     cache = { ts: now, data: empty };
     return { statusCode: 200, headers, body: JSON.stringify(empty) };
   }
