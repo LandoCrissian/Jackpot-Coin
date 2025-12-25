@@ -7,7 +7,6 @@
   <meta name="description" content="Jackpot Token — SOL payouts, verifiable on-chain." />
   <meta name="theme-color" content="#070A0F" />
 
-  <!-- ✅ Sharing / canonical domain -->
   <link rel="canonical" href="https://www.jackpotcoin.fun/" />
   <meta property="og:title" content="Jackpot Token (JACKPOT)" />
   <meta property="og:description" content="SOL payouts • On-chain verification • Live cadence" />
@@ -31,6 +30,7 @@
     }
     *{box-sizing:border-box}
     html,body{height:100%}
+    html{scroll-behavior:smooth}
     body{
       margin:0;
       font-family:var(--sans);
@@ -40,39 +40,54 @@
         radial-gradient(800px 420px at 85% 0%, rgba(124,58,237,.18), transparent 55%),
         var(--bg);
     }
-    .wrap{max-width:1040px;margin:0 auto;padding:18px 16px 64px}
 
-    header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0 16px}
+    /* ===== Sticky / smart header ===== */
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:50;
+      padding:10px 0 10px;
+      transform:translateY(0);
+      transition:transform .22s ease, opacity .22s ease, filter .22s ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background: linear-gradient(180deg, rgba(7,10,15,.80), rgba(7,10,15,.35));
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .topbar.isHidden{ transform:translateY(-110%); }
+    .topbar.isDim{ opacity:.62; filter:saturate(.9); }
+
+    .wrap{max-width:1040px;margin:0 auto;padding:0 16px 64px}
+    .wrapInner{padding-top:14px}
+
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0 10px}
     .brand{display:flex;align-items:center;gap:12px;min-width:0}
     .logoImg{
-      width:54px;height:54px;border-radius:16px;
+      width:48px;height:48px;border-radius:14px;
       border:1px solid var(--stroke);
       box-shadow:var(--shadow);
       background:rgba(255,255,255,.03);
       object-fit:cover;
       flex:0 0 auto;
     }
-
     .brandText{min-width:0}
-    .brandText h1{margin:0;font-size:18px;letter-spacing:.3px;line-height:1.15}
+    .brandText h1{margin:0;font-size:16px;letter-spacing:.3px;line-height:1.15}
     .brandText p{
-      margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.25;
-      white-space:normal;
-      overflow:visible;
-      max-width:520px;
+      margin:5px 0 0;color:var(--muted);font-size:12.5px;line-height:1.25;
+      white-space:normal;overflow:visible;max-width:520px;
     }
 
     .ctaRow{
-      display:grid;
-      grid-template-columns:repeat(3, minmax(0, 1fr));
+      display:flex;
       gap:10px;
-      width:min(520px, 100%);
-      justify-items:stretch;
+      align-items:center;
+      justify-content:flex-end;
+      width:min(560px, 100%);
     }
-
     @media (max-width:900px){
-      header{flex-direction:column;align-items:flex-start}
-      .ctaRow{width:100%}
+      header{flex-direction:row;align-items:center}
+      .ctaRow{width:auto}
+      .brandText p{display:none}
     }
 
     .btn{
@@ -90,6 +105,7 @@
       transition:transform .08s ease, background .2s ease, border-color .2s ease;
       -webkit-tap-highlight-color:transparent;
       white-space:nowrap;
+      user-select:none;
     }
     .btn:active{transform:translateY(1px)}
     .btn:hover{background:rgba(255,255,255,.06)}
@@ -98,7 +114,52 @@
       border-color:rgba(255,255,255,.11);
     }
 
-    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:10px}
+    .iconOnly{
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      padding:0;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+      line-height:1;
+    }
+
+    /* ===== Hamburger menu ===== */
+    .menuWrap{ position:relative; }
+    .menu{
+      position:absolute;
+      right:0;
+      top:52px;
+      width:min(300px, 88vw);
+      border:1px solid var(--stroke);
+      background:rgba(10,12,18,.92);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      padding:10px;
+      display:none;
+    }
+    .menu.open{ display:block; }
+    .menu a{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.06);
+      text-decoration:none;
+      font-size:13px;
+      color:var(--text);
+      background:rgba(255,255,255,.02);
+      margin:8px 0;
+    }
+    .menu a:hover{ background:rgba(255,255,255,.06); }
+    .menu small{ color:var(--muted); font-size:12px; }
+    .menuHr{ height:1px; background:rgba(255,255,255,.08); margin:10px 2px; }
+
+    /* ===== Page layout ===== */
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:14px}
     @media (max-width:900px){.grid{grid-template-columns:1fr}}
 
     .card{
@@ -145,6 +206,19 @@
       text-decoration:none;
     }
     .pill strong{color:var(--text);font-weight:700}
+
+    .legacyBanner{
+      margin:10px 0 14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.22);
+      border-radius:16px;
+      padding:12px;
+      display:none;
+    }
+    .legacyBanner.show{display:block}
+    .legacyBanner h3{margin:0 0 6px;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+    .legacyBanner p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+    .legacyBanner b{color:var(--text)}
 
     .countWrap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
     @media (max-width:520px){.countWrap{grid-template-columns:repeat(2,1fr)}}
@@ -256,118 +330,187 @@
     }
     .toast.show{display:block}
 
-    /* make the whole winners card not grow forever */
-aside.card{
-  max-height: 560px;      /* adjust */
-  display:flex;
-  flex-direction:column;
-}
+    /* winners card scroll */
+    aside.card{ max-height: 560px; display:flex; flex-direction:column; }
+    #winnersList{ overflow:auto; max-height: 440px; padding-right: 6px; -webkit-overflow-scrolling: touch; }
 
-/* make only the list scroll */
-#winnersList{
-  overflow:auto;
-  max-height: 440px;      /* adjust */
-  padding-right: 6px;
-}
-
-/* nicer iOS scrolling */
-#winnersList{
-  -webkit-overflow-scrolling: touch;
-}
+    /* Story section */
+    .storyGrid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+    .storyItem{
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+      border-radius:16px;
+      padding:14px;
+    }
+    .storyItem h4{margin:0 0 6px;font-size:13px;letter-spacing:.4px}
+    .storyItem p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+    .mutedLink{border-bottom:1px solid rgba(255,255,255,.12)}
   </style>
 </head>
 
-<body>
+<body id="top">
+  <!-- Sticky topbar -->
+  <div class="topbar" id="topbar">
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <img class="logoImg" alt="Jackpot logo" src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
+          <div class="brandText">
+            <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
+            <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
+          </div>
+        </div>
+
+        <div class="ctaRow">
+          <a class="btn" href="https://x.com/i/communities/2003622679861973461" target="_blank" rel="noopener">Community ↗</a>
+          <a class="btn btnPrimary" href="https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
+
+          <div class="menuWrap">
+            <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
+            <div class="menu" id="menu">
+              <a href="#draw" class="menuLink"><span>Next Draw</span><small>timer + status</small></a>
+              <a href="#winners" class="menuLink"><span>Recent Winners</span><small>scrollable payouts</small></a>
+              <a href="#contract" class="menuLink"><span>Contract</span><small>copy CA</small></a>
+              <a href="#story" class="menuLink"><span>The Story</span><small>legacy + CTO era</small></a>
+              <div class="menuHr"></div>
+              <a href="#top" class="menuLink"><span>Back to top</span><small>home</small></a>
+            </div>
+          </div>
+        </div>
+      </header>
+    </div>
+  </div>
+
   <div class="wrap">
-    <header>
-      <div class="brand">
-        <img class="logoImg" alt="Jackpot logo" src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
-        <div class="brandText">
-          <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
-          <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
-        </div>
+    <div class="wrapInner">
+      <div class="grid">
+        <section class="card cardGlow" id="draw">
+          <div class="kicker"><span class="dot"></span> Provably paid • Verifiable on Solscan</div>
+          <h2>Next Jackpot Draw</h2>
+          <p class="sub">
+            Countdown is synced to the <b>most recent on-chain payout</b>. Every winner below includes a direct Solscan proof link.
+          </p>
+
+          <div class="statusRow">
+            <div class="pill"><strong>Status</strong>: <span id="liveStatus">Loading…</span></div>
+            <div class="pill"><strong>Last payout</strong>: <span id="lastPayout">—</span></div>
+            <div class="pill"><strong>Total paid</strong>: <span id="totalPaid">—</span></div>
+            <div class="pill"><strong>SOL</strong>: <span id="solPrice">—</span></div>
+
+            <!-- CTO wallet ALWAYS -->
+            <a class="pill" id="payoutWalletLink" href="#" target="_blank" rel="noopener">
+              <strong>Payout wallet</strong>: View ↗
+            </a>
+
+            <!-- Legacy wallet only when applicable -->
+            <a class="pill" id="legacyWalletLink" href="#" target="_blank" rel="noopener" style="display:none;">
+              <strong>Legacy wallet</strong>: View ↗
+            </a>
+          </div>
+
+          <div class="legacyBanner" id="legacyBanner">
+            <h3>Legacy Mode</h3>
+            <p>
+              You’re viewing historical payouts from Jackpot’s early phase.
+              <b>All future payouts originate from the CTO wallet.</b>
+            </p>
+          </div>
+
+          <div class="countWrap" role="group" aria-label="Countdown timer">
+            <div class="timeBox">
+              <div class="timeLabel">Minutes</div>
+              <div class="timeVal" id="cdMin">--</div>
+            </div>
+            <div class="timeBox">
+              <div class="timeLabel">Seconds</div>
+              <div class="timeVal timeValAccent" id="cdSec">--</div>
+            </div>
+            <div class="timeBox">
+              <div class="timeLabel">Next draw (UTC)</div>
+              <div class="timeVal" style="font-size:14px; letter-spacing:.2px" id="nextUtc">--</div>
+            </div>
+            <div class="timeBox">
+              <div class="timeLabel">Cadence (observed)</div>
+              <div class="timeVal" style="font-size:14px; letter-spacing:.2px" id="cadenceText">—</div>
+            </div>
+          </div>
+
+          <div class="rowTitle" id="contract">
+            <div class="label">Contract address</div>
+            <div class="pill">Network: Solana</div>
+          </div>
+
+          <div class="addr">
+            <code id="contractAddr">7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2</code>
+            <button class="miniBtn" id="copyBtn" type="button">Copy</button>
+          </div>
+
+          <div class="trust" aria-label="Trust and transparency">
+            <h3>Trust & transparency</h3>
+            <ul>
+              <li><b>On-chain payouts:</b> winners are paid directly on Solana.</li>
+              <li><b>System Program transfers:</b> standard native SOL transfers.</li>
+              <li><b>Independent verification:</b> every winner links to Solscan proof.</li>
+              <li><b>Read-only site:</b> no wallet connect, no permissions, no approvals.</li>
+            </ul>
+          </div>
+
+          <div class="foot">Always verify the contract address and transactions via official links.</div>
+          <div class="toast" id="toast"></div>
+        </section>
+
+        <aside class="card" id="winners">
+          <div class="sectionHead">
+            <h3>Recent winners</h3>
+            <span class="badge" id="updatedBadge"><strong>Updated</strong>: --</span>
+          </div>
+
+          <ul class="winners" id="winnersList"></ul>
+
+          <div class="foot">
+            Winners are pulled from on-chain System Program transfers from the payout wallet.
+          </div>
+        </aside>
       </div>
 
-      <div class="ctaRow">
-        <a class="btn" href="https://x.com/i/communities/2003622679861973461" target="_blank" rel="noopener">Community ↗</a>
-        <a class="btn btnPrimary" href="https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
-      </div>
-    </header>
-
-    <div class="grid">
-      <section class="card cardGlow">
-        <div class="kicker"><span class="dot"></span> Provably paid • Verifiable on Solscan</div>
-        <h2>Next Jackpot Draw</h2>
-        <p class="sub">
-          Countdown is synced to the <b>most recent on-chain payout</b>. Every winner below includes a direct Solscan proof link.
-        </p>
-
-        <div class="statusRow">
-          <div class="pill"><strong>Status</strong>: <span id="liveStatus">Loading…</span></div>
-          <div class="pill"><strong>Last payout</strong>: <span id="lastPayout">—</span></div>
-          <div class="pill"><strong>Total paid</strong>: <span id="totalPaid">—</span></div>
-          <div class="pill"><strong>SOL</strong>: <span id="solPrice">—</span></div>
-          <a class="pill" id="payoutWalletLink" href="#" target="_blank" rel="noopener"><strong>Payout wallet</strong>: View ↗</a>
-        </div>
-
-        <div class="countWrap" role="group" aria-label="Countdown timer">
-          <div class="timeBox">
-            <div class="timeLabel">Minutes</div>
-            <div class="timeVal" id="cdMin">--</div>
-          </div>
-          <div class="timeBox">
-            <div class="timeLabel">Seconds</div>
-            <div class="timeVal timeValAccent" id="cdSec">--</div>
-          </div>
-          <div class="timeBox">
-            <div class="timeLabel">Next draw (UTC)</div>
-            <div class="timeVal" style="font-size:14px; letter-spacing:.2px" id="nextUtc">--</div>
-          </div>
-          <div class="timeBox">
-            <div class="timeLabel">Cadence (observed)</div>
-            <div class="timeVal" style="font-size:14px; letter-spacing:.2px" id="cadenceText">—</div>
-          </div>
-        </div>
-
-        <div class="rowTitle">
-          <div class="label">Contract address</div>
-          <div class="pill">Network: Solana</div>
-        </div>
-
-        <div class="addr">
-          <code id="contractAddr">7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2</code>
-          <button class="miniBtn" id="copyBtn" type="button">Copy</button>
-        </div>
-
-        <div class="trust" aria-label="Trust and transparency">
-          <h3>Trust & transparency</h3>
-          <ul>
-            <li><b>On-chain payouts:</b> winners are paid directly on Solana.</li>
-            <li><b>System Program transfers:</b> standard native SOL transfers.</li>
-            <li><b>Independent verification:</b> every winner links to Solscan proof.</li>
-            <li><b>Read-only site:</b> no wallet connect, no permissions, no approvals.</li>
-          </ul>
-        </div>
-
-        <div class="foot">
-          Always verify the contract address and transactions via official links.
-        </div>
-
-        <div class="toast" id="toast"></div>
-      </section>
-
-      <aside class="card">
+      <!-- Story -->
+      <section class="card" id="story" style="margin-top:14px;">
         <div class="sectionHead">
-          <h3>Recent winners</h3>
-          <span class="badge" id="updatedBadge"><strong>Updated</strong>: --</span>
+          <h3>The Story</h3>
+          <span class="badge"><strong>Living log</strong>: updated over time</span>
         </div>
 
-        <ul class="winners" id="winnersList"></ul>
+        <div class="storyGrid">
+          <div class="storyItem">
+            <h4>Day 0 — Jackpot is launched</h4>
+            <p>Jackpot begins as an experiment in provable, on-chain SOL payouts using standard Solana System Program transfers.</p>
+          </div>
 
-        <div class="foot">
-          Winners are pulled from on-chain System Program transfers from the payout wallet.
+          <div class="storyItem">
+            <h4>Pump.fun v2 — Early bonded token</h4>
+            <p>
+              Jackpot was one of the earliest tokens bonded using Pump.fun v2 mechanics — a real-world test of v2 behavior in live conditions.
+              We’ll continue documenting the technical journey here.
+              <a class="mutedLink" href="https://x.com/IamtheTachi" target="_blank" rel="noopener">@IamtheTachi ↗</a>
+            </p>
+          </div>
+
+          <div class="storyItem">
+            <h4>Legacy Era — Payout history preserved</h4>
+            <p>Legacy payouts remain publicly verifiable for transparency. They’re part of the record — not erased.</p>
+          </div>
+
+          <div class="storyItem">
+            <h4>CTO Era — New payout wallet active</h4>
+            <p>
+              The CTO wallet is now the source of truth for future payouts and stability.
+              The site is built to prevent resets and avoid “jumping” totals across visitors.
+            </p>
+          </div>
         </div>
-      </aside>
+
+        <div class="foot">This section is intentionally simple — we add new entries as the project evolves.</div>
+      </section>
     </div>
   </div>
 
@@ -380,10 +523,10 @@ aside.card{
       community: "https://x.com/i/communities/2003622679861973461",
       trade: "https://pfv2.fun/trade/7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
       site: "https://www.jackpotcoin.fun/",
-      cadenceMs: 15 * 60 * 1000, // fallback until API loads
+      cadenceMs: 15 * 60 * 1000,
+      ctoWallet: "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK",
     };
 
-    // ✅ never overwrite this with null once we have a value
     let lastPayoutUTC_FROM_API = null;
 
     function pad2(n){ return String(n).padStart(2, "0"); }
@@ -399,6 +542,47 @@ aside.card{
       const d = new Date(ms);
       return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
     }
+
+    /* ===== Menu ===== */
+    const menuBtn = document.getElementById("menuBtn");
+    const menu = document.getElementById("menu");
+    menuBtn.addEventListener("click", () => menu.classList.toggle("open"));
+    document.querySelectorAll(".menuLink").forEach(a => {
+      a.addEventListener("click", () => menu.classList.remove("open"));
+    });
+    document.addEventListener("click", (e) => {
+      if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove("open");
+    });
+
+    /* ===== Smart header: dim while scrolling, hide on fast scroll down, show on stop/up ===== */
+    (function headerScrollFX(){
+      const bar = document.getElementById("topbar");
+      let lastY = window.scrollY || 0;
+      let scrollingTimer = null;
+
+      function onScroll(){
+        const y = window.scrollY || 0;
+        const dy = y - lastY;
+
+        bar.classList.add("isDim");
+
+        // hide on downward scroll (only after some movement)
+        if (dy > 10 && y > 80) bar.classList.add("isHidden");
+        // show on upward scroll
+        if (dy < -10) bar.classList.remove("isHidden");
+
+        lastY = y;
+
+        clearTimeout(scrollingTimer);
+        scrollingTimer = setTimeout(() => {
+          bar.classList.remove("isDim");
+          // when user stops, bring it back
+          bar.classList.remove("isHidden");
+        }, 180);
+      }
+
+      window.addEventListener("scroll", onScroll, { passive:true });
+    })();
 
     function showToast(msg){
       const el = document.getElementById("toast");
@@ -454,11 +638,29 @@ aside.card{
     function setStatus(data){
       const live = document.getElementById("liveStatus");
       const last = document.getElementById("lastPayout");
-      const walletLink = document.getElementById("payoutWalletLink");
-      walletLink.href = data?.payoutWalletUrl || "#";
+
+      // CTO wallet link should ALWAYS be CTO wallet
+      const payoutWalletLink = document.getElementById("payoutWalletLink");
+      payoutWalletLink.href = CONFIG.solscanAccountBase + CONFIG.ctoWallet;
+
+      // Legacy wallet link ONLY if API says we’re in legacy mode
+      const legacyLink = document.getElementById("legacyWalletLink");
+      const legacyBanner = document.getElementById("legacyBanner");
+
+      const inLegacy = (data?.mode === "legacy") && data?.payoutWallet;
+      if (inLegacy) {
+        legacyLink.style.display = "";
+        legacyLink.href = CONFIG.solscanAccountBase + data.payoutWallet; // wallet being displayed
+        legacyBanner.classList.add("show");
+      } else {
+        legacyLink.style.display = "none";
+        legacyBanner.classList.remove("show");
+      }
 
       if (data?.stale || data?.error) {
         live.textContent = "Feed unstable (showing last known)";
+      } else if (inLegacy) {
+        live.textContent = "Legacy mode (history)";
       } else {
         live.textContent = "Live";
       }
@@ -516,26 +718,25 @@ ${CONFIG.site}`;
     }
 
     function renderWinners(listEl, winners){
-  const items = Array.isArray(winners) ? winners : []; // ✅ no slicing
-  listEl.innerHTML = "";
+      const items = Array.isArray(winners) ? winners : [];
+      listEl.innerHTML = "";
 
-  if (!items.length) {
-    const empty = document.createElement("li");
-    empty.className = "win";
-    empty.innerHTML = `
-      <div class="winLeft">
-        <div class="who">No payouts detected yet</div>
-        <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
-      </div>
-      <div class="amt">—</div>`;
-    listEl.appendChild(empty);
-    return;
-  }
+      if (!items.length) {
+        const empty = document.createElement("li");
+        empty.className = "win";
+        empty.innerHTML = `
+          <div class="winLeft">
+            <div class="who">No payouts detected yet</div>
+            <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
+          </div>
+          <div class="amt">—</div>`;
+        listEl.appendChild(empty);
+        return;
+      }
 
-  items.forEach(w => listEl.appendChild(winnerItem(w)));
-}
+      items.forEach(w => listEl.appendChild(winnerItem(w)));
+    }
 
-    // show last good winners immediately on load
     (function bootFromStorage(){
       const list = document.getElementById("winnersList");
       const key = "jackpot_last_good_payload_v2";
@@ -563,70 +764,52 @@ ${CONFIG.site}`;
         if(!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
 
-        // ===============================
-// TOTAL PAID + SOL PRICE (NEW)
-// ===============================
-const totalPaidEl = document.getElementById("totalPaid");
-const solPriceEl  = document.getElementById("solPrice");
+        // Total paid + SOL price
+        const totalPaidEl = document.getElementById("totalPaid");
+        const solPriceEl  = document.getElementById("solPrice");
 
-if (typeof data?.solUsd === "number") {
-  solPriceEl.textContent = `$${data.solUsd.toFixed(2)}`;
-} else {
-  solPriceEl.textContent = "—";
-}
+        if (typeof data?.solUsd === "number") solPriceEl.textContent = `$${data.solUsd.toFixed(2)}`;
+        else solPriceEl.textContent = "—";
 
-if (typeof data?.totalPaidSOLTracked === "number") {
-  const sol = data.totalPaidSOLTracked;
-  const usd =
-    (typeof data?.totalPaidUSDTracked === "number")
-      ? data.totalPaidUSDTracked
-      : null;
+        if (typeof data?.totalPaidSOLTracked === "number") {
+          const sol = data.totalPaidSOLTracked;
+          const usd = (typeof data?.totalPaidUSDTracked === "number") ? data.totalPaidUSDTracked : null;
+          totalPaidEl.textContent = (usd !== null)
+            ? `${sol.toFixed(4)} SOL (~$${usd.toFixed(2)})`
+            : `${sol.toFixed(4)} SOL`;
+        } else {
+          totalPaidEl.textContent = "—";
+        }
 
-  totalPaidEl.textContent = usd !== null
-    ? `${sol.toFixed(4)} SOL (~$${usd.toFixed(2)})`
-    : `${sol.toFixed(4)} SOL`;
-} else {
-  totalPaidEl.textContent = "—";
-}
-
-        // ✅ only update last payout if valid (prevents timer jumping)
         if (data?.lastPayoutUTC) lastPayoutUTC_FROM_API = data.lastPayoutUTC;
 
-        // cadence
         if (typeof data?.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
           CONFIG.cadenceMs = data.cadenceSeconds * 1000;
-          document.getElementById("cadenceText").textContent =
-            `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
+          document.getElementById("cadenceText").textContent = `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
         }
 
         setUpdatedBadge(data.updatedUTC || null);
         setStatus(data);
 
-        // ✅ ALWAYS render winners if provided (even if stale)
         if (Array.isArray(data?.winners) && data.winners.length) {
           renderWinners(list, data.winners);
 
-          // persist last good
           localStorage.setItem(keyLastGood, JSON.stringify({
             updatedUTC: data.updatedUTC,
-            payoutWalletUrl: data.payoutWalletUrl,
             lastPayoutUTC: data.lastPayoutUTC || lastPayoutUTC_FROM_API,
             cadenceSeconds: data.cadenceSeconds || Math.round(CONFIG.cadenceMs / 1000),
-            winners: data.winners
+            winners: data.winners,
+            mode: data.mode || "active",
+            payoutWallet: data.payoutWallet || null,
           }));
         } else {
-          // If no winners returned, keep whatever UI already has
           showToast("Waiting for RPC index… keeping last winners");
         }
 
-        if (data?.stale || data?.error) {
-          showToast("RPC hiccup — showing last known");
-        }
-
+        if (data?.stale || data?.error) showToast("RPC hiccup — showing last known");
       }catch(e){
         showToast("Feed unstable — keeping last winners");
         document.getElementById("liveStatus").textContent = "Feed unstable (showing last known)";
-        // IMPORTANT: do NOT clear winners on error
       }
     }
 
