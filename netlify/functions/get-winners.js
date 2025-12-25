@@ -4,7 +4,7 @@
 // Adds: totalPaidSOLTracked + SOL/USD price => totalPaidUSDTracked
 // Fixes: dedupe + merge winners across runs + totals never decrease (no jumping)
 
-const PAYOUT_WALLET = "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
+const PAYOUT_WALLET = "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK";
 
 const RPC_ENDPOINTS = [
   process.env.HELIUS_RPC_URL, // set in Netlify env
