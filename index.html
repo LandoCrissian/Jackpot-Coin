@@ -345,6 +345,38 @@
     .storyItem h4{margin:0 0 6px;font-size:13px;letter-spacing:.4px}
     .storyItem p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
     .mutedLink{border-bottom:1px solid rgba(255,255,255,.12)}
+
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0 16px}
+
+/* …other styles… */
+
+/* ✅ Fix iPhone header alignment + make CTAs sit lower */
+header{
+  align-items: center;
+}
+
+.brand{
+  align-items: center;
+}
+
+.ctaRow{
+  align-items: center;
+  margin-top: 10px;
+}
+
+@media (max-width: 560px){
+  header{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ctaRow{
+    width: 100%;
+    margin-top: 12px;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+  }
+}
   </style>
 </head>
 
