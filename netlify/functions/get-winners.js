@@ -3,12 +3,13 @@
 // ✅ Persistent state via Netlify Blobs (no reset/jumps across refresh/visitors)
 // ✅ Wallet transition mode: show legacy payouts until new wallet has a first payout
 // ✅ Dedupe + merge across runs + totals never decrease
+// ✅ Reduced RPC load + safer legacy fallback + fewer "feed_unstable" false alarms
 
 const { getStore } = require("@netlify/blobs");
 
 const PAYOUT_WALLET = "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK"; // CTO wallet (active)
 
-// OPTIONAL: set this to the OLD wallet to run “A” transition mode.
+// OPTIONAL: set this to the OLD wallet to run legacy transition mode.
 // If active wallet has 0 payouts detected, we will show legacy payouts until active starts paying.
 const LEGACY_PAYOUT_WALLET =
   process.env.LEGACY_PAYOUT_WALLET || "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
@@ -21,11 +22,11 @@ const RPC_ENDPOINTS = [
 // Server-side in-memory cache (reduces RPC load per warm instance)
 const CACHE_MS = 12_000;
 
-// Cheap call: signatures
-const SIG_LIMIT = 1000;
+// Cheap call: signatures (reduced)
+const SIG_LIMIT = 400; // was 1000
 
-// Expensive calls: getTransaction
-const MAX_TX_FETCH = 500;
+// Expensive calls: getTransaction (reduced)
+const MAX_TX_FETCH = 200; // was 500
 
 const MAX_WINNERS_HARD = 500; // hard cap
 const CONCURRENCY = 3;
@@ -38,7 +39,7 @@ let cache = { ts: 0, data: null };
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function fetchJsonWithTimeout(url, opts, timeoutMs = 9000) {
+async function fetchJsonWithTimeout(url, opts, timeoutMs = 12000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -57,14 +58,14 @@ async function rpcTry(endpoint, method, params) {
     const { ok, status, json } = await fetchJsonWithTimeout(
       endpoint,
       { method: "POST", headers: { "Content-Type": "application/json" }, body },
-      9000
+      12000
     );
 
     if (json?.error) throw new Error(json.error.message || "RPC error");
 
     if (!ok) {
       if (status === 429 || status >= 500) {
-        await sleep(450 + attempt * 800);
+        await sleep(900 + attempt * 1200);
         continue;
       }
       throw new Error(`RPC HTTP ${status}`);
@@ -238,8 +239,8 @@ function buildResponse({
     winners: (winners || []).slice(0, winnerLimit),
     stale: !!stale,
 
-    mode,              // ✅ tells UI if we're still in legacy display mode
-    legacyWallet,      // ✅ for transparency
+    mode,
+    legacyWallet,
   };
 
   if (error) out.error = error;
@@ -294,6 +295,7 @@ async function scanWalletForWinners(wallet) {
         }
       }
     }
+
     if (scanned.length >= MAX_WINNERS_HARD) break;
   }
 
@@ -332,7 +334,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify(cached) };
     }
 
-    // Pull persisted state
+    // Pull persisted ACTIVE state
     const persisted = (await store.get(stateKey, { type: "json" }).catch(() => null)) || null;
 
     const [solUsd, activeScan] = await Promise.all([
@@ -377,7 +379,7 @@ exports.handler = async (event) => {
     }
     if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
-    // WALLET TRANSITION MODE ("A"):
+    // WALLET TRANSITION MODE:
     // If new wallet has 0 payouts detected, show legacy payouts until new wallet starts paying.
     let mode = "active";
     let winnersToShow = mergedActive;
@@ -391,7 +393,14 @@ exports.handler = async (event) => {
 
       const legacyStateKey = `state_v1_${LEGACY_PAYOUT_WALLET}`;
       const legacyPersisted = (await store.get(legacyStateKey, { type: "json" }).catch(() => null)) || null;
-      const legacyScan = await scanWalletForWinners(LEGACY_PAYOUT_WALLET);
+
+      // ✅ Legacy scan MUST NOT crash response
+      let legacyScan = [];
+      try {
+        legacyScan = await scanWalletForWinners(LEGACY_PAYOUT_WALLET);
+      } catch {
+        legacyScan = [];
+      }
 
       const mergedLegacy = legacyPersisted?.winners?.length
         ? mergeWinners(legacyScan, legacyPersisted.winners)
@@ -419,7 +428,7 @@ exports.handler = async (event) => {
       await store.set(legacyStateKey, legacyData, { type: "json" }).catch(() => {});
     }
 
-    // Build final response
+    // Build final response (what UI sees)
     const data = buildResponse({
       payoutWallet: payoutWalletToShow,
       payoutWalletUrl: payoutWalletUrlToShow,
@@ -459,17 +468,19 @@ exports.handler = async (event) => {
   } catch (e) {
     const msg = String(e?.message || e);
 
-    // Try to serve persisted state if available
+    // Serve persisted state if available (and don't panic the UI)
     try {
-      const store = getStore("jackpot");
-      const persisted = await store.get(`state_v1_${PAYOUT_WALLET}`, { type: "json" });
+      const persisted = await store.get(stateKey, { type: "json" });
       if (persisted?.winners?.length) {
         const safe = {
           ...persisted,
           updatedUTC: new Date().toISOString(),
           stale: true,
-          error: "feed_unstable",
-          message: msg,
+          // If you WANT to show warnings, set these back:
+          // error: "feed_unstable",
+          // message: msg,
+          error: null,
+          message: null,
         };
         cache = { ts: now, data: safe };
         return { statusCode: 200, headers, body: JSON.stringify(safe) };
