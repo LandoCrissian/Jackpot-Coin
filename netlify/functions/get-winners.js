@@ -1,40 +1,26 @@
 // netlify/functions/get-winners.js
-// Robust + low-RPC-load payout detection for JackpotCoin
-// ✅ Persistent state via Netlify Blobs (no reset/jumps across refresh/visitors)
-// ✅ Wallet transition mode: show legacy payouts until new wallet has a first payout
-// ✅ Dedupe + merge across runs + totals never decrease
-// ✅ Reduced RPC load + safer legacy fallback + fewer "feed_unstable" false alarms
+// CTO wallet ONLY • Helius RPC ONLY • NO Netlify Blobs • NO legacy mode
+// ✅ uses commitment:"confirmed" to catch recent payouts faster
+// ✅ retries getTransaction when RPC is indexing
+// ✅ no persistent state (clean + simple)
+// ✅ optional ?reset=1 bypasses in-memory cache
 
-const { getStore } = require("@netlify/blobs");
+const PAYOUT_WALLET = "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK"; // CTO wallet
 
-const PAYOUT_WALLET = "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK"; // CTO wallet (active)
+const HELIUS_RPC_URL = process.env.HELIUS_RPC_URL; // must be set in Netlify env
 
-// OPTIONAL: set this to the OLD wallet to run legacy transition mode.
-// If active wallet has 0 payouts detected, we will show legacy payouts until active starts paying.
-const LEGACY_PAYOUT_WALLET =
-  process.env.LEGACY_PAYOUT_WALLET || "66g5y8657nnGYcPSx8VM98C9rkre7YZLM3SpkuTDwwrw";
-
-const RPC_ENDPOINTS = [
-  process.env.HELIUS_RPC_URL, // set in Netlify env
-  "https://api.mainnet-beta.solana.com",
-].filter(Boolean);
-
-// Server-side in-memory cache (reduces RPC load per warm instance)
+// Server warm-cache only (optional)
 const CACHE_MS = 12_000;
 
-// Cheap call: signatures (reduced)
-const SIG_LIMIT = 400; // was 1000
+// Cheap call: signatures
+const SIG_LIMIT = 800;
 
-// Expensive calls: getTransaction (reduced)
-const MAX_TX_FETCH = 200; // was 500
+// Expensive calls: getTransaction
+const MAX_TX_FETCH = 250;
 
-const MAX_WINNERS_HARD = 500; // hard cap
+const MAX_WINNERS_HARD = 500;
 const CONCURRENCY = 3;
 
-// If new run finds 0 winners but we had winners recently, keep last list
-const STALE_OK_MS = 10 * 60 * 1000;
-
-// In-memory cache (still useful, but not relied on)
 let cache = { ts: 0, data: null };
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -51,12 +37,14 @@ async function fetchJsonWithTimeout(url, opts, timeoutMs = 12000) {
   }
 }
 
-async function rpcTry(endpoint, method, params) {
+async function rpcTry(method, params) {
+  if (!HELIUS_RPC_URL) throw new Error("Missing HELIUS_RPC_URL env var");
+
   const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method, params });
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const { ok, status, json } = await fetchJsonWithTimeout(
-      endpoint,
+      HELIUS_RPC_URL,
       { method: "POST", headers: { "Content-Type": "application/json" }, body },
       12000
     );
@@ -78,15 +66,7 @@ async function rpcTry(endpoint, method, params) {
 }
 
 async function rpc(method, params) {
-  let lastErr = null;
-  for (const ep of RPC_ENDPOINTS) {
-    try {
-      return await rpcTry(ep, method, params);
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr || new Error("All RPC endpoints failed");
+  return rpcTry(method, params);
 }
 
 function isoFromBlockTime(bt) {
@@ -152,7 +132,6 @@ async function getSolUsd() {
   }
 }
 
-/** Deduplicate by tx signature */
 function dedupeByTx(winners) {
   const m = new Map();
   for (const w of (winners || [])) {
@@ -166,14 +145,6 @@ function dedupeByTx(winners) {
   return Array.from(m.values());
 }
 
-/** Merge new scan with prior winners */
-function mergeWinners(newOnes, oldOnes) {
-  const combined = dedupeByTx([...(oldOnes || []), ...(newOnes || [])]);
-  combined.sort((a, b) => (Date.parse(b.whenUTC || 0) - Date.parse(a.whenUTC || 0)));
-  return combined.slice(0, MAX_WINNERS_HARD);
-}
-
-/** Compute totals from a list of winners */
 function computeTotals(winners) {
   let sol = 0;
   let count = 0;
@@ -193,22 +164,7 @@ function computeTotals(winners) {
   return { sol, count, oldestUTC };
 }
 
-function buildResponse({
-  payoutWallet,
-  payoutWalletUrl,
-  winners,
-  cadenceSeconds,
-  solUsd,
-  totalPaidSOLTracked,
-  trackedPayoutCount,
-  trackedOldestUTC,
-  stale = false,
-  error = null,
-  message = null,
-  winnerLimit = 20,
-  mode = "active", // "active" | "legacy"
-  legacyWallet = null,
-}) {
+function buildResponse({ winners, cadenceSeconds, solUsd, totalPaidSOLTracked, trackedPayoutCount, trackedOldestUTC, stale=false, error=null, message=null, winnerLimit=200 }) {
   const lastPayoutUTC = winners[0]?.whenUTC || null;
 
   const nextDrawUTC = lastPayoutUTC
@@ -222,8 +178,8 @@ function buildResponse({
 
   const out = {
     updatedUTC: new Date().toISOString(),
-    payoutWallet,
-    payoutWalletUrl,
+    payoutWallet: PAYOUT_WALLET,
+    payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
     lastPayoutUTC,
     nextDrawUTC,
     cadenceSeconds,
@@ -238,15 +194,33 @@ function buildResponse({
 
     winners: (winners || []).slice(0, winnerLimit),
     stale: !!stale,
-
-    mode,
-    legacyWallet,
   };
 
   if (error) out.error = error;
   if (message) out.message = message;
-
   return out;
+}
+
+// Fetch transaction with retries (helps with "recent payout not captured yet")
+async function getTxWithRetry(sig) {
+  // 1) confirmed first (fresh)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const tx = await rpc("getTransaction", [
+      sig,
+      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment: "confirmed" },
+    ]).catch(() => null);
+
+    if (tx) return tx;
+    await sleep(350 + attempt * 450);
+  }
+
+  // 2) fallback finalized
+  const txFinal = await rpc("getTransaction", [
+    sig,
+    { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment: "finalized" },
+  ]).catch(() => null);
+
+  return txFinal;
 }
 
 async function scanWalletForWinners(wallet) {
@@ -259,10 +233,7 @@ async function scanWalletForWinners(wallet) {
   const toFetch = signatures.slice(0, MAX_TX_FETCH);
 
   const txs = await mapLimit(toFetch, CONCURRENCY, async (sig) => {
-    const tx = await rpc("getTransaction", [
-      sig,
-      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
-    ]);
+    const tx = await getTxWithRetry(sig);
     return { sig, tx };
   });
 
@@ -319,52 +290,26 @@ exports.handler = async (event) => {
   }
 
   const now = Date.now();
-
-  // Persistent store (shared across all visitors + cold starts)
-  const store = getStore("jackpot");
-  const stateKey = `state_v1_${PAYOUT_WALLET}`;
+  const q = event.queryStringParameters || {};
+  const winnerLimit = clampInt(q.limit, 1, MAX_WINNERS_HARD, 200);
+  const reset = String(q.reset || "") === "1";
 
   try {
-    const q = event.queryStringParameters || {};
-    const winnerLimit = clampInt(q.limit, 1, MAX_WINNERS_HARD, 200);
-
-    // In-memory cache (fast path)
-    if (cache.data && (now - cache.ts) < CACHE_MS) {
+    // warm-cache fast path (unless reset)
+    if (!reset && cache.data && (now - cache.ts) < CACHE_MS) {
       const cached = { ...cache.data, winners: (cache.data.winners || []).slice(0, winnerLimit) };
       return { statusCode: 200, headers, body: JSON.stringify(cached) };
     }
 
-    // Pull persisted ACTIVE state
-    const persisted = (await store.get(stateKey, { type: "json" }).catch(() => null)) || null;
-
-    const [solUsd, activeScan] = await Promise.all([
+    const [solUsd, winners] = await Promise.all([
       getSolUsd(),
       scanWalletForWinners(PAYOUT_WALLET),
     ]);
 
-    // Merge with persisted winners so we never lose history
-    const mergedActive = persisted?.winners?.length
-      ? mergeWinners(activeScan, persisted.winners)
-      : activeScan;
-
-    // Compute totals from merged list
-    let totals = computeTotals(mergedActive);
-
-    // Clamp totals so they never decrease (across cold starts too)
-    if (typeof persisted?.totalPaidSOLTracked === "number") {
-      totals.sol = Math.max(totals.sol, persisted.totalPaidSOLTracked);
-    }
-    if (typeof persisted?.trackedPayoutCount === "number") {
-      totals.count = Math.max(totals.count, persisted.trackedPayoutCount);
-    }
-    if (!totals.oldestUTC && persisted?.trackedOldestUTC) {
-      totals.oldestUTC = persisted.trackedOldestUTC;
-    }
-
-    // Cadence based on merged list (stable)
-    let cadenceSeconds = null;
-    if (mergedActive.length >= 3) {
-      const times = mergedActive
+    // cadence from observed gaps (fallback 15m)
+    let cadenceSeconds = 15 * 60;
+    if (winners.length >= 3) {
+      const times = winners
         .map(w => Date.parse(w.whenUTC))
         .filter(Number.isFinite)
         .sort((a, b) => b - a);
@@ -377,90 +322,22 @@ exports.handler = async (event) => {
       const med = median(gaps);
       if (med) cadenceSeconds = Math.round(med);
     }
-    if (!cadenceSeconds) cadenceSeconds = 15 * 60;
 
-    // WALLET TRANSITION MODE:
-    // If new wallet has 0 payouts detected, show legacy payouts until new wallet starts paying.
-    let mode = "active";
-    let winnersToShow = mergedActive;
-    let payoutWalletToShow = PAYOUT_WALLET;
-    let payoutWalletUrlToShow = `https://solscan.io/account/${PAYOUT_WALLET}`;
-    let legacyWallet = null;
+    const totals = computeTotals(winners);
 
-    if ((mergedActive.length === 0) && LEGACY_PAYOUT_WALLET && LEGACY_PAYOUT_WALLET !== PAYOUT_WALLET) {
-      mode = "legacy";
-      legacyWallet = LEGACY_PAYOUT_WALLET;
-
-      const legacyStateKey = `state_v1_${LEGACY_PAYOUT_WALLET}`;
-      const legacyPersisted = (await store.get(legacyStateKey, { type: "json" }).catch(() => null)) || null;
-
-      // ✅ Legacy scan MUST NOT crash response
-      let legacyScan = [];
-      try {
-        legacyScan = await scanWalletForWinners(LEGACY_PAYOUT_WALLET);
-      } catch {
-        legacyScan = [];
-      }
-
-      const mergedLegacy = legacyPersisted?.winners?.length
-        ? mergeWinners(legacyScan, legacyPersisted.winners)
-        : legacyScan;
-
-      winnersToShow = mergedLegacy;
-      payoutWalletToShow = LEGACY_PAYOUT_WALLET;
-      payoutWalletUrlToShow = `https://solscan.io/account/${LEGACY_PAYOUT_WALLET}`;
-
-      // Persist legacy too (so it’s stable across refreshes)
-      const legacyTotals = computeTotals(mergedLegacy);
-      const legacyData = buildResponse({
-        payoutWallet: LEGACY_PAYOUT_WALLET,
-        payoutWalletUrl: payoutWalletUrlToShow,
-        winners: mergedLegacy,
-        cadenceSeconds: 15 * 60,
-        solUsd,
-        totalPaidSOLTracked: legacyTotals.sol,
-        trackedPayoutCount: legacyTotals.count,
-        trackedOldestUTC: legacyTotals.oldestUTC,
-        winnerLimit: MAX_WINNERS_HARD,
-        mode: "legacy",
-        legacyWallet: null,
-      });
-      await store.set(legacyStateKey, legacyData, { type: "json" }).catch(() => {});
-    }
-
-    // Build final response (what UI sees)
     const data = buildResponse({
-      payoutWallet: payoutWalletToShow,
-      payoutWalletUrl: payoutWalletUrlToShow,
-      winners: winnersToShow,
+      winners,
       cadenceSeconds,
       solUsd,
       totalPaidSOLTracked: totals.sol,
       trackedPayoutCount: totals.count,
       trackedOldestUTC: totals.oldestUTC,
       winnerLimit,
-      mode,
-      legacyWallet,
+      stale: false,
+      error: null,
+      message: null,
     });
 
-    // Persist ACTIVE state (so every visitor sees stable output)
-    const persistActive = buildResponse({
-      payoutWallet: PAYOUT_WALLET,
-      payoutWalletUrl: `https://solscan.io/account/${PAYOUT_WALLET}`,
-      winners: mergedActive,
-      cadenceSeconds,
-      solUsd,
-      totalPaidSOLTracked: totals.sol,
-      trackedPayoutCount: totals.count,
-      trackedOldestUTC: totals.oldestUTC,
-      winnerLimit: MAX_WINNERS_HARD,
-      mode: "active",
-      legacyWallet: null,
-    });
-
-    await store.set(stateKey, persistActive, { type: "json" }).catch(() => {});
-
-    // Update in-memory cache too
     cache = { ts: now, data };
 
     return { statusCode: 200, headers, body: JSON.stringify(data) };
@@ -468,24 +345,19 @@ exports.handler = async (event) => {
   } catch (e) {
     const msg = String(e?.message || e);
 
-    // Serve persisted state if available (and don't panic the UI)
-    try {
-      const persisted = await store.get(stateKey, { type: "json" });
-      if (persisted?.winners?.length) {
-        const safe = {
-          ...persisted,
-          updatedUTC: new Date().toISOString(),
-          stale: true,
-          // If you WANT to show warnings, set these back:
-          // error: "feed_unstable",
-          // message: msg,
-          error: null,
-          message: null,
-        };
-        cache = { ts: now, data: safe };
-        return { statusCode: 200, headers, body: JSON.stringify(safe) };
-      }
-    } catch {}
+    // if we have cache, serve it as stale instead of empty
+    if (cache?.data?.winners?.length) {
+      const safe = {
+        ...cache.data,
+        updatedUTC: new Date().toISOString(),
+        winners: cache.data.winners.slice(0, winnerLimit),
+        stale: true,
+        error: "feed_unstable",
+        message: msg,
+      };
+      cache = { ts: now, data: safe };
+      return { statusCode: 200, headers, body: JSON.stringify(safe) };
+    }
 
     const empty = {
       updatedUTC: new Date().toISOString(),
@@ -503,8 +375,6 @@ exports.handler = async (event) => {
       stale: true,
       error: "feed_unavailable",
       message: msg,
-      mode: "active",
-      legacyWallet: null,
     };
 
     cache = { ts: now, data: empty };
