@@ -377,6 +377,127 @@ header{
     gap: 10px;
   }
 }
+
+    /* ===== Sticky translucent topbar (always visible) ===== */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  padding: 10px 0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(7,10,15,.55);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  transition: background .18s ease, padding .18s ease, border-color .18s ease;
+}
+
+.topbar.scrolled{
+  background: rgba(7,10,15,.78);
+  padding: 8px 0;
+  border-bottom-color: rgba(255,255,255,.10);
+}
+
+/* ===== Desktop/tablet header ===== */
+header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 6px 0;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
+
+.logoImg{
+  width:54px;
+  height:54px;
+  border-radius:16px;
+}
+
+.brandText h1{
+  margin:0;
+  font-size:18px;            /* slightly larger */
+  letter-spacing:.2px;
+  line-height:1.1;
+}
+
+.brandText p{
+  margin:5px 0 0;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.ctaRow{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-end;
+}
+
+/* ===== Mobile: centered + tighter + bigger brand ===== */
+@media (max-width: 560px){
+  header{
+    display:grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    justify-items:center;
+    gap:10px;
+    padding: 6px 0 2px;
+  }
+
+  .brand{
+    justify-content:center;
+    text-align:center;
+    gap:10px;
+  }
+
+  .logoImg{
+    width:56px;
+    height:56px;
+    border-radius:18px;
+  }
+
+  .brandText h1{
+    font-size:20px;          /* bigger */
+    letter-spacing:.15px;
+  }
+
+  .brandText p{
+    display:none;            /* keep it tight on mobile */
+  }
+
+  /* buttons stay on one clean row */
+  .ctaRow{
+    width:100%;
+    display:grid;
+    grid-template-columns: 1fr 1fr auto; /* Community | Trade | Menu */
+    gap:10px;
+    align-items:center;
+  }
+
+  .btn{
+    padding:11px 12px;
+    border-radius:14px;
+    font-size:13.5px;
+    justify-content:center;
+  }
+
+  .iconOnly{
+    width:44px;
+    height:44px;
+  }
+
+  /* dropdown aligns with centered header */
+  .menu{
+    right:0;
+    top:54px;
+  }
+}
   </style>
 </head>
 
@@ -587,34 +708,15 @@ header{
     });
 
     /* ===== Smart header: dim while scrolling, hide on fast scroll down, show on stop/up ===== */
-    (function headerScrollFX(){
-      const bar = document.getElementById("topbar");
-      let lastY = window.scrollY || 0;
-      let scrollingTimer = null;
-
-      function onScroll(){
-        const y = window.scrollY || 0;
-        const dy = y - lastY;
-
-        bar.classList.add("isDim");
-
-        // hide on downward scroll (only after some movement)
-        if (dy > 10 && y > 80) bar.classList.add("isHidden");
-        // show on upward scroll
-        if (dy < -10) bar.classList.remove("isHidden");
-
-        lastY = y;
-
-        clearTimeout(scrollingTimer);
-        scrollingTimer = setTimeout(() => {
-          bar.classList.remove("isDim");
-          // when user stops, bring it back
-          bar.classList.remove("isHidden");
-        }, 180);
-      }
-
-      window.addEventListener("scroll", onScroll, { passive:true });
-    })();
+    /* ===== Sticky glass header (no snap / no hide) ===== */
+(function stickyGlass(){
+  const bar = document.getElementById("topbar");
+  function onScroll(){
+    bar.classList.toggle("scrolled", (window.scrollY || 0) > 8);
+  }
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive:true });
+})();
 
     function showToast(msg){
       const el = document.getElementById("toast");
