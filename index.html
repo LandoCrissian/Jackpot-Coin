@@ -745,6 +745,47 @@ header.siteHeader{
 .menu{
   z-index: 3000;
 }
+
+    /* =========================================
+   FIX: iOS sticky header "seam" / color shift
+   Makes the topbar a consistent glass layer
+========================================= */
+
+.topbar{
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  isolation: isolate;                 /* creates a clean stacking context */
+  transform: translateZ(0);           /* iOS compositing fix */
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  background: rgba(7,10,15,.86) !important; /* force consistent base color */
+}
+
+/* put the pretty gradient on a pseudo-layer so it doesn't "cut" */
+.topbar::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(7,10,15,.88), rgba(7,10,15,.62));
+}
+
+/* keep your blur but make it stable */
+.topbar{
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+/* iOS safe area (prevents weird top spacing / notch edge artifacts) */
+.topbar .wrap{
+  padding-top: env(safe-area-inset-top);
+}
 </style>
 </head>
 
