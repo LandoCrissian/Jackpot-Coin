@@ -552,25 +552,6 @@ aside.card{ max-height: 560px; display:flex; flex-direction:column; }
   .wbWallet{max-width:72vw}
   .wbRight{display:none}
 }
-
-    /* =========================================
-   iOS SEAM FIX — FINAL
-========================================= */
-html.ios .topbar{
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background: rgba(7,10,15,.94) !important;
-}
-
-html.ios .topbar::before{
-  opacity: .65;
-}
-
-html.ios .topbar::after{
-  height: 24px;
-  bottom: -24px;
-  background: linear-gradient(180deg, rgba(7,10,15,.60), rgba(7,10,15,0));
-}
 </style>
 </head>
 
@@ -1108,23 +1089,7 @@ ${CONFIG.site}
 
   loadWinners();
   setInterval(loadWinners, 12_000);
-
-    <script>
-  loadWinners();
-  setInterval(loadWinners, 12_000);
 </script>
-
-<!-- iOS seam fix detection -->
-<script>
-(() => {
-  const ua = navigator.userAgent || "";
-  const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (isIOS) document.documentElement.classList.add("ios");
-})();
-</script>
-
 </body>
 </html>
 
