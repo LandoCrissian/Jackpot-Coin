@@ -745,69 +745,6 @@ header.siteHeader{
 .menu{
   z-index: 3000;
 }
-
-    /* =========================================
-   COMPACT STICKY HEADER (removes wasted space)
-   Uses your existing .topbar.scrolled class
-========================================= */
-
-/* tighten overall header height when scrolling */
-.topbar.scrolled header.siteHeader{
-  gap: 8px;
-  padding: 6px 0 6px;
-}
-
-/* shrink logo + title a bit */
-.topbar.scrolled .logoImg{
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-}
-
-.topbar.scrolled .brandText h1{
-  font-size: 16px;
-}
-
-/* hide subtitle to save vertical space */
-.topbar.scrolled #subtitle{
-  display: none;
-}
-
-/* tighten CTA buttons */
-.topbar.scrolled .btn{
-  padding: 9px 11px;
-  border-radius: 13px;
-  font-size: 13px;
-}
-
-.topbar.scrolled .iconOnly{
-  width: 42px;
-  height: 42px;
-}
-
-/* make winner banner thinner */
-.topbar.scrolled .winnerBanner{
-  padding: 9px 10px;
-}
-
-/* reduce banner height by removing the second row while scrolling */
-.topbar.scrolled .winnerBanner .wbBottom{
-  display: none;
-}
-
-/* optional: slightly reduce label/amount size in compact mode */
-.topbar.scrolled .winnerBanner .wbLabel{
-  font-size: 11px;
-}
-.topbar.scrolled .winnerBanner .wbAmt{
-  font-size: 12px;
-}
-
-/* keep the banner glow behind everything */
-.topbar.scrolled .winnerBanner::before,
-.topbar.scrolled .winnerBanner::after{
-  opacity: .9;
-}
 </style>
 </head>
 
