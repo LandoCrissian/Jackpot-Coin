@@ -552,6 +552,39 @@ aside.card{ max-height: 560px; display:flex; flex-direction:column; }
   .wbWallet{max-width:72vw}
   .wbRight{display:none}
 }
+
+    /* ==========================
+   iOS / in-app browser banding fix
+   (SAFE: does not change layout)
+========================== */
+
+/* keep the topbar in its own paint layer */
+.topbar{
+  contain: paint;
+}
+
+/* iOS: blur + gradients often cause 2–3 “bands” while scrolling.
+   We keep the look, but stabilize compositing. */
+html.ios .topbar{
+  /* stop iOS from re-rasterizing blur each scroll frame */
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+
+  /* keep a strong glass base so it still looks premium */
+  background: rgba(7,10,15,.92) !important;
+}
+
+/* keep your gradients, but render them more consistently */
+html.ios .topbar::before{
+  opacity: .70;
+}
+
+/* make the “tail” longer so the transition never hard-cuts */
+html.ios .topbar::after{
+  height: 28px;
+  bottom: -28px;
+  background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
+}
 </style>
 </head>
 
@@ -1090,6 +1123,18 @@ ${CONFIG.site}
   loadWinners();
   setInterval(loadWinners, 12_000);
 </script>
+
+  
+<script>
+(() => {
+  const ua = navigator.userAgent || "";
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIOS) document.documentElement.classList.add("ios");
+})();
+</script>
+
 </body>
 </html>
 
