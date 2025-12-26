@@ -477,6 +477,244 @@
     .wbWallet{max-width: 72vw;}
     .wbRight{display:none;}
   }
+
+    /* =========================
+   CLEAN HEADER LAYOUT FIX
+   (mobile-safe, no overlap)
+========================= */
+
+/* topbar stays sticky */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  padding: 10px 0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(7,10,15,.60);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+.topbar.scrolled{
+  background: rgba(7,10,15,.78);
+}
+
+/* turn header into a grid so things NEVER collide */
+header.siteHeader{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "brand ctas"
+    "banner banner";
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0 10px;
+}
+
+/* brand area */
+header.siteHeader .brand{
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+header.siteHeader .logoImg{
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  flex: 0 0 auto;
+}
+
+header.siteHeader .brandText{
+  min-width: 0;
+}
+
+header.siteHeader .brandText h1{
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: .2px;
+}
+
+header.siteHeader .brandText p{
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ctas area */
+header.siteHeader .ctaRow{
+  grid-area: ctas;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+/* winner banner ALWAYS on its own row */
+header.siteHeader .winnerBanner{
+  grid-area: banner;
+  width: 100%;
+  margin-top: 2px; /* slight tuck */
+}
+
+/* MOBILE: stack into 3 rows and center nicely */
+@media (max-width: 560px){
+  header.siteHeader{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "ctas"
+      "banner";
+    gap: 10px;
+    padding: 8px 0 10px;
+  }
+
+  header.siteHeader .brand{
+    justify-content: center;
+    text-align: center;
+  }
+
+  header.siteHeader .brandText p{
+    display: none; /* keeps it clean on small screens */
+  }
+
+  /* buttons on one clean row */
+  header.siteHeader .ctaRow{
+    display: grid;
+    grid-template-columns: 1fr 1fr auto; /* Community | Trade | Menu */
+    width: 100%;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  header.siteHeader .btn{
+    justify-content: center;
+    padding: 11px 12px;
+  }
+
+  header.siteHeader .iconOnly{
+    width: 44px;
+    height: 44px;
+  }
+
+  /* dropdown menu positioning on mobile */
+  header.siteHeader .menu{
+    right: 0;
+    top: 54px;
+  }
+}
+
+/* =========================
+   Winner Banner (your glow)
+   (keep your existing styles)
+========================= */
+.winnerBanner{
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  background:
+    radial-gradient(900px 180px at 10% 50%, rgba(0,255,163,.14), transparent 60%),
+    radial-gradient(900px 180px at 90% 50%, rgba(220,31,255,.14), transparent 60%),
+    rgba(0,0,0,.22);
+  box-shadow:
+    0 16px 55px rgba(0,0,0,.55),
+    0 0 0 1px rgba(255,255,255,.04) inset;
+  padding: 12px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  position: relative;
+  overflow:hidden;
+}
+
+.winnerBanner::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(520px 120px at 18% 50%, rgba(0,255,163,.22), transparent 60%),
+    radial-gradient(520px 120px at 82% 50%, rgba(220,31,255,.18), transparent 60%);
+  filter: saturate(1.2);
+  pointer-events:none;
+}
+
+.winnerBanner::after{
+  content:"";
+  position:absolute;
+  top:-40%;
+  left:-30%;
+  width:60%;
+  height:180%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+  transform: rotate(18deg);
+  animation: wbSheen 4.8s ease-in-out infinite;
+  pointer-events:none;
+  opacity:.8;
+}
+
+@keyframes wbSheen{
+  0%, 35% { transform: translateX(-20%) rotate(18deg); opacity:.0; }
+  45%     { opacity:.75; }
+  70%,100%{ transform: translateX(220%) rotate(18deg); opacity:0; }
+}
+
+.wbLeft{display:flex; align-items:flex-start; gap:10px; min-width:0; position:relative}
+.wbDot{
+  width:10px; height:10px; border-radius:999px;
+  background: linear-gradient(135deg, #00FFA3, #DC1FFF);
+  box-shadow: 0 0 22px rgba(0,255,163,.55), 0 0 28px rgba(220,31,255,.35);
+  margin-top: 4px;
+  flex:0 0 auto;
+}
+.wbText{min-width:0; position:relative}
+.wbTop{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.wbLabel{
+  font-size:12px;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color: rgba(234,241,251,.70);
+}
+.wbAmt{
+  font-family: var(--mono);
+  font-weight: 900;
+  color: #00FFA3;
+  text-shadow: 0 0 16px rgba(0,255,163,.22);
+  font-size: 13px;
+}
+.wbBottom{
+  margin-top: 6px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wbBottom a{ border-bottom: 1px solid rgba(255,255,255,.18); text-decoration:none; }
+.wbBottom a:hover{ border-bottom-color: rgba(255,255,255,.45); }
+.wbSep{opacity:.55}
+.wbWallet{
+  font-family: var(--mono);
+  max-width: 54vw;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.wbRight{position:relative; flex:0 0 auto}
+.wbMeta{
+  font-family: var(--mono);
+  font-size: 12px;
+  color: rgba(234,241,251,.75);
+  white-space:nowrap;
+}
+@media (max-width:560px){
+  .wbWallet{max-width: 72vw;}
+  .wbRight{display:none;}
+}
 </style>
 </head>
 
