@@ -15,683 +15,544 @@
   <meta name="twitter:card" content="summary_large_image" />
 
   <style>
-    :root{
-      --bg:#070A0F;
-      --card:rgba(255,255,255,.04);
-      --stroke:rgba(255,255,255,.09);
-      --text:#EAF1FB;
-      --muted:#9AA4B2;
-      --accent:#34D399;
-      --accent2:#7C3AED;
-      --shadow:0 18px 55px rgba(0,0,0,.55);
-      --radius:18px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    html{scroll-behavior:smooth}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      color:var(--text);
-      background:
-        radial-gradient(900px 420px at 15% -10%, rgba(52,211,153,.18), transparent 60%),
-        radial-gradient(800px 420px at 85% 0%, rgba(124,58,237,.18), transparent 55%),
-        var(--bg);
-    }
-
-    /* ===== Sticky / smart header ===== */
-    .topbar{
-      position:sticky;
-      top:0;
-      z-index:50;
-      padding:10px 0 10px;
-      transform:translateY(0);
-      transition:transform .22s ease, opacity .22s ease, filter .22s ease;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      background: linear-gradient(180deg, rgba(7,10,15,.80), rgba(7,10,15,.35));
-      border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-    .topbar.isHidden{ transform:translateY(-110%); }
-    .topbar.isDim{ opacity:.62; filter:saturate(.9); }
-
-    .wrap{max-width:1040px;margin:0 auto;padding:0 16px 64px}
-    .wrapInner{padding-top:14px}
-
-    header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0 10px}
-    .brand{display:flex;align-items:center;gap:12px;min-width:0}
-    .logoImg{
-      width:48px;height:48px;border-radius:14px;
-      border:1px solid var(--stroke);
-      box-shadow:var(--shadow);
-      background:rgba(255,255,255,.03);
-      object-fit:cover;
-      flex:0 0 auto;
-    }
-    .brandText{min-width:0}
-    .brandText h1{margin:0;font-size:16px;letter-spacing:.3px;line-height:1.15}
-    .brandText p{
-      margin:5px 0 0;color:var(--muted);font-size:12.5px;line-height:1.25;
-      white-space:normal;overflow:visible;max-width:520px;
-    }
-
-    .ctaRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:flex-end;
-      width:min(560px, 100%);
-    }
-    @media (max-width:900px){
-      header{flex-direction:row;align-items:center}
-      .ctaRow{width:auto}
-      .brandText p{display:none}
-    }
-
-    .btn{
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.03);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
-      text-decoration:none;
-      font-size:13px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      transition:transform .08s ease, background .2s ease, border-color .2s ease;
-      -webkit-tap-highlight-color:transparent;
-      white-space:nowrap;
-      user-select:none;
-    }
-    .btn:active{transform:translateY(1px)}
-    .btn:hover{background:rgba(255,255,255,.06)}
-    .btnPrimary{
-      background:linear-gradient(135deg, rgba(52,211,153,.20), rgba(124,58,237,.16));
-      border-color:rgba(255,255,255,.11);
-    }
-
-    .iconOnly{
-      width:42px;
-      height:42px;
-      border-radius:14px;
-      padding:0;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      font-size:18px;
-      line-height:1;
-    }
-
-    /* ===== Hamburger menu ===== */
-    .menuWrap{ position:relative; }
-    .menu{
-      position:absolute;
-      right:0;
-      top:52px;
-      width:min(300px, 88vw);
-      border:1px solid var(--stroke);
-      background:rgba(10,12,18,.92);
-      border-radius:16px;
-      box-shadow:var(--shadow);
-      padding:10px;
-      display:none;
-    }
-    .menu.open{ display:block; }
-    .menu a{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.06);
-      text-decoration:none;
-      font-size:13px;
-      color:var(--text);
-      background:rgba(255,255,255,.02);
-      margin:8px 0;
-    }
-    .menu a:hover{ background:rgba(255,255,255,.06); }
-    .menu small{ color:var(--muted); font-size:12px; }
-    .menuHr{ height:1px; background:rgba(255,255,255,.08); margin:10px 2px; }
-
-    /* ===== Page layout ===== */
-    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:14px}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
-
-    .card{
-      border:1px solid var(--stroke);
-      background:var(--card);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:18px;
-      overflow:hidden;
-      position:relative;
-    }
-    .cardGlow:before{
-      content:"";
-      position:absolute;
-      inset:-2px;
-      background:
-        radial-gradient(600px 240px at 18% 0%, rgba(52,211,153,.22), transparent 60%),
-        radial-gradient(600px 240px at 82% 0%, rgba(124,58,237,.18), transparent 60%);
-      pointer-events:none;
-      filter:saturate(1.1);
-    }
-    .cardGlow>*{position:relative}
-
-    .kicker{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:7px 10px;border-radius:999px;
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.20);
-      color:var(--muted);
-      font-size:12px;
-      margin-bottom:10px;
-    }
-    .dot{width:8px;height:8px;border-radius:999px;background:var(--accent);box-shadow:0 0 18px rgba(52,211,153,.55)}
-    h2{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
-    .sub{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.55}
-
-    .statusRow{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
-    .pill{
-      font-size:12px;color:var(--muted);
-      border:1px solid var(--stroke);
-      padding:6px 10px;border-radius:999px;
-      background:rgba(255,255,255,.02);
-      white-space:nowrap;
-      text-decoration:none;
-    }
-    .pill strong{color:var(--text);font-weight:700}
-
-    .legacyBanner{
-      margin:10px 0 14px;
-      border:1px solid rgba(255,255,255,.10);
-      background:rgba(0,0,0,.22);
-      border-radius:16px;
-      padding:12px;
-      display:none;
-    }
-    .legacyBanner.show{display:block}
-    .legacyBanner h3{margin:0 0 6px;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
-    .legacyBanner p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
-    .legacyBanner b{color:var(--text)}
-
-    .countWrap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-    @media (max-width:520px){.countWrap{grid-template-columns:repeat(2,1fr)}}
-    .timeBox{
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.22);
-      border-radius:16px;
-      padding:12px 12px 10px;
-      min-height:74px;
-    }
-    .timeLabel{color:var(--muted);font-size:12px;margin-bottom:6px;letter-spacing:.2px}
-    .timeVal{font-family:var(--mono);font-weight:800;font-size:22px;letter-spacing:1px}
-    .timeValAccent{color:var(--accent)}
-
-    .rowTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 10px}
-    .rowTitle .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
-    .addr{
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.25);
-      border-radius:16px;
-      padding:10px 10px 10px 12px;
-    }
-    .addr code{
-      font-family:var(--mono);
-      font-size:12.5px;
-      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    }
-    .miniBtn{
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.03);
-      color:var(--text);
-      border-radius:12px;
-      padding:9px 10px;
-      font-size:12px;
-      cursor:pointer;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .miniBtn:active{transform:translateY(1px)}
-
-    .trust{margin-top:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18);border-radius:16px;padding:12px}
-    .trust h3{margin:0 0 8px;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
-    .trust ul{margin:0;padding-left:18px}
-    .trust li{margin:6px 0;color:var(--muted);font-size:13px;line-height:1.45}
-    .trust b{color:var(--text);font-weight:700}
-
-    .sectionHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-    .sectionHead h3{margin:0;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
-    .badge{
-      display:inline-flex;align-items:center;gap:6px;border:1px solid var(--stroke);
-      background:rgba(255,255,255,.02);color:var(--muted);
-      padding:6px 10px;border-radius:999px;font-size:12px;white-space:nowrap;
-    }
-    .badge strong{color:var(--text);font-weight:700}
-
-    .winners{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-    .win{
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.18);
-      border-radius:16px;
-      padding:12px;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .winLeft{min-width:0}
-    .who{
-      font-family:var(--mono);
-      font-size:13px;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-      max-width:62vw;
-    }
-    .meta{
-      margin-top:6px;font-size:12px;color:var(--muted);
-      line-height:1.35;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
-    }
-    a{color:var(--text);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18)}
-    a:hover{border-bottom-color:rgba(255,255,255,.45)}
-    .amt{font-family:var(--mono);font-weight:900;font-size:13px;color:var(--accent);white-space:nowrap}
-
-    .iconBtn{
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.03);
-      color:var(--text);
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:12px;
-      cursor:pointer;
-      -webkit-tap-highlight-color:transparent;
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      text-decoration:none;
-      border-bottom:none;
-    }
-    .iconBtn:hover{background:rgba(255,255,255,.06)}
-    .foot{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.55}
-
-    .toast{
-      margin-top:10px;
-      border:1px solid rgba(255,255,255,.10);
-      background:rgba(0,0,0,.25);
-      color:var(--muted);
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:12px;
-      display:none;
-    }
-    .toast.show{display:block}
-
-    /* winners card scroll */
-    aside.card{ max-height: 560px; display:flex; flex-direction:column; }
-    #winnersList{ overflow:auto; max-height: 440px; padding-right: 6px; -webkit-overflow-scrolling: touch; }
-
-    /* Story section */
-    .storyGrid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
-    .storyItem{
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.18);
-      border-radius:16px;
-      padding:14px;
-    }
-    .storyItem h4{margin:0 0 6px;font-size:13px;letter-spacing:.4px}
-    .storyItem p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
-    .mutedLink{border-bottom:1px solid rgba(255,255,255,.12)}
-
-    header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0 16px}
-
-/* …other styles… */
-
-/* ✅ Fix iPhone header alignment + make CTAs sit lower */
-header{
-  align-items: center;
-}
-
-.brand{
-  align-items: center;
-}
-
-.ctaRow{
-  align-items: center;
-  margin-top: 10px;
-}
-
-@media (max-width: 560px){
-  header{
-    flex-direction: column;
-    align-items: flex-start;
+  :root{
+    --bg:#070A0F;
+    --card:rgba(255,255,255,.04);
+    --stroke:rgba(255,255,255,.09);
+    --text:#EAF1FB;
+    --muted:#9AA4B2;
+    --accent:#34D399;
+    --accent2:#7C3AED;
+    --shadow:0 18px 55px rgba(0,0,0,.55);
+    --radius:18px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--text);
+    background:
+      radial-gradient(900px 420px at 15% -10%, rgba(52,211,153,.18), transparent 60%),
+      radial-gradient(800px 420px at 85% 0%, rgba(124,58,237,.18), transparent 55%),
+      var(--bg);
   }
 
-  .ctaRow{
-    width: 100%;
-    margin-top: 12px;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 10px;
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px 64px}
+  .wrapInner{padding-top:14px}
+
+  /* ==========================
+     STICKY TOPBAR (single)
+  ========================== */
+  .topbar{
+    position:sticky;
+    top:0;
+    z-index:999;
+    padding: 10px 0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: linear-gradient(180deg, rgba(7,10,15,.82), rgba(7,10,15,.35));
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    transition: background .18s ease, padding .18s ease, border-color .18s ease;
   }
-}
+  .topbar.scrolled{
+    background: linear-gradient(180deg, rgba(7,10,15,.90), rgba(7,10,15,.55));
+    padding: 8px 0;
+    border-bottom-color: rgba(255,255,255,.10);
+  }
 
-    /* ===== Sticky translucent topbar (always visible) ===== */
-.topbar{
-  position: sticky;
-  top: 0;
-  z-index: 999;
-  padding: 10px 0;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: rgba(7,10,15,.55);
-  border-bottom: 1px solid rgba(255,255,255,.07);
-  transition: background .18s ease, padding .18s ease, border-color .18s ease;
-}
-
-.topbar.scrolled{
-  background: rgba(7,10,15,.78);
-  padding: 8px 0;
-  border-bottom-color: rgba(255,255,255,.10);
-}
-
-/* ===== Desktop/tablet header ===== */
-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding: 6px 0;
-}
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  min-width:0;
-}
-
-.logoImg{
-  width:54px;
-  height:54px;
-  border-radius:16px;
-}
-
-.brandText h1{
-  margin:0;
-  font-size:18px;            /* slightly larger */
-  letter-spacing:.2px;
-  line-height:1.1;
-}
-
-.brandText p{
-  margin:5px 0 0;
-  font-size:13px;
-  color:var(--muted);
-}
-
-.ctaRow{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  justify-content:flex-end;
-}
-
-/* ===== Mobile: centered + tighter + bigger brand ===== */
-@media (max-width: 560px){
-  header{
+  /* ==========================
+     HEADER LAYOUT (single)
+  ========================== */
+  .siteHeader{
     display:grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     grid-template-rows: auto auto;
-    justify-items:center;
-    gap:10px;
-    padding: 6px 0 2px;
+    gap: 12px;
+    align-items:center;
+    padding: 6px 0 12px;
   }
 
-  .brand{
-    justify-content:center;
-    text-align:center;
-    gap:10px;
-  }
-
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
   .logoImg{
-    width:56px;
-    height:56px;
-    border-radius:18px;
+    width:54px;height:54px;border-radius:16px;
+    border:1px solid var(--stroke);
+    box-shadow:var(--shadow);
+    background:rgba(255,255,255,.03);
+    object-fit:cover;
+    flex:0 0 auto;
   }
+  .brandText{min-width:0}
+  .brandText h1{margin:0;font-size:18px;letter-spacing:.2px;line-height:1.1}
+  .brandText p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.25}
 
-  .brandText h1{
-    font-size:20px;          /* bigger */
-    letter-spacing:.15px;
-  }
-
-  .brandText p{
-    display:none;            /* keep it tight on mobile */
-  }
-
-  /* buttons stay on one clean row */
   .ctaRow{
-    width:100%;
-    display:grid;
-    grid-template-columns: 1fr 1fr auto; /* Community | Trade | Menu */
+    display:flex;
     gap:10px;
     align-items:center;
+    justify-content:flex-end;
+    width:auto;
   }
 
   .btn{
-    padding:11px 12px;
+    border:1px solid var(--stroke);
+    background:rgba(255,255,255,.03);
+    color:var(--text);
+    padding:10px 12px;
     border-radius:14px;
-    font-size:13.5px;
+    text-decoration:none;
+    font-size:13px;
+    display:inline-flex;
+    align-items:center;
     justify-content:center;
+    gap:8px;
+    transition:transform .08s ease, background .2s ease, border-color .2s ease;
+    -webkit-tap-highlight-color:transparent;
+    white-space:nowrap;
+    user-select:none;
+    border-bottom:none;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn:hover{background:rgba(255,255,255,.06)}
+  .btnPrimary{
+    background:linear-gradient(135deg, rgba(52,211,153,.20), rgba(124,58,237,.16));
+    border-color:rgba(255,255,255,.11);
   }
 
   .iconOnly{
     width:44px;
     height:44px;
+    border-radius:14px;
+    padding:0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    line-height:1;
   }
 
-  /* dropdown aligns with centered header */
+  /* ==========================
+     MENU
+  ========================== */
+  .menuWrap{ position:relative; }
   .menu{
+    position:absolute;
     right:0;
     top:54px;
+    width:min(300px, 88vw);
+    border:1px solid var(--stroke);
+    background:rgba(10,12,18,.92);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    padding:10px;
+    display:none;
   }
-}
+  .menu.open{ display:block; }
+  .menu a{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.06);
+    text-decoration:none;
+    font-size:13px;
+    color:var(--text);
+    background:rgba(255,255,255,.02);
+    margin:8px 0;
+  }
+  .menu a:hover{ background:rgba(255,255,255,.06); }
+  .menu small{ color:var(--muted); font-size:12px; }
+  .menuHr{ height:1px; background:rgba(255,255,255,.08); margin:10px 2px; }
 
-    /* ============================================
-2) CSS: sticky header + Solana-glow winner banner
-============================================ */
-
-/* make header stick to top as you scroll */
-header{
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  padding: 12px 0 14px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  background: linear-gradient(180deg, rgba(7,10,15,.86), rgba(7,10,15,.55));
-  border-bottom: 1px solid rgba(255,255,255,.07);
-}
-
-/* smooth “dim while scrolling” optional (JS below toggles .isScrolling) */
-header.isScrolling{
-  opacity: .92;
-  transition: opacity .22s ease;
-}
-
-/* winner banner sits UNDER the CTA row */
-.winnerBanner{
-  margin-top: 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.12);
-  background:
-    radial-gradient(900px 180px at 10% 50%, rgba(0,255,163,.14), transparent 60%),
-    radial-gradient(900px 180px at 90% 50%, rgba(220,31,255,.14), transparent 60%),
-    rgba(0,0,0,.22);
-  box-shadow:
-    0 16px 55px rgba(0,0,0,.55),
-    0 0 0 1px rgba(255,255,255,.04) inset;
-  padding: 12px 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap: 10px;
-  position: relative;
-  overflow:hidden;
-}
-
-/* Solana glow ring + animated sheen */
-.winnerBanner::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    radial-gradient(520px 120px at 18% 50%, rgba(0,255,163,.22), transparent 60%),
-    radial-gradient(520px 120px at 82% 50%, rgba(220,31,255,.18), transparent 60%);
-  filter: saturate(1.2);
-  pointer-events:none;
-}
-.winnerBanner::after{
-  content:"";
-  position:absolute;
-  top:-40%;
-  left:-30%;
-  width:60%;
-  height:180%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
-  transform: rotate(18deg);
-  animation: wbSheen 4.8s ease-in-out infinite;
-  pointer-events:none;
-  opacity:.8;
-}
-@keyframes wbSheen{
-  0%, 35% { transform: translateX(-20%) rotate(18deg); opacity:.0; }
-  45%     { opacity:.75; }
-  70%,100%{ transform: translateX(220%) rotate(18deg); opacity:0; }
-}
-
-.wbLeft{display:flex; align-items:flex-start; gap:10px; min-width:0; position:relative}
-.wbDot{
-  width:10px; height:10px; border-radius:999px;
-  background: linear-gradient(135deg, #00FFA3, #DC1FFF);
-  box-shadow: 0 0 22px rgba(0,255,163,.55), 0 0 28px rgba(220,31,255,.35);
-  margin-top: 4px;
-  flex:0 0 auto;
-}
-.wbText{min-width:0; position:relative}
-.wbTop{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
-.wbLabel{
-  font-size:12px;
-  letter-spacing:.8px;
-  text-transform:uppercase;
-  color: rgba(234,241,251,.70);
-}
-.wbAmt{
-  font-family: var(--mono);
-  font-weight: 900;
-  color: #00FFA3;
-  text-shadow: 0 0 16px rgba(0,255,163,.22);
-  font-size: 13px;
-}
-.wbBottom{
-  margin-top: 6px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-  font-size: 12px;
-  color: var(--muted);
-}
-.wbBottom a{
-  border-bottom: 1px solid rgba(255,255,255,.18);
-  text-decoration:none;
-}
-.wbBottom a:hover{border-bottom-color: rgba(255,255,255,.45)}
-.wbSep{opacity:.55}
-
-.wbWallet{
-  font-family: var(--mono);
-  max-width: 54vw;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-.wbRight{position:relative; flex:0 0 auto}
-.wbMeta{
-  font-family: var(--mono);
-  font-size: 12px;
-  color: rgba(234,241,251,.75);
-  white-space:nowrap;
-}
-
-/* mobile: keep it clean */
-@media (max-width:560px){
+  /* ==========================
+     WINNER BANNER (Solana glow)
+  ========================== */
   .winnerBanner{
-    padding: 11px 11px;
+    grid-column: 1 / -1; /* sits under whole header row */
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,.12);
+    background:
+      radial-gradient(900px 180px at 10% 50%, rgba(0,255,163,.14), transparent 60%),
+      radial-gradient(900px 180px at 90% 50%, rgba(220,31,255,.14), transparent 60%),
+      rgba(0,0,0,.22);
+    box-shadow:
+      0 16px 55px rgba(0,0,0,.55),
+      0 0 0 1px rgba(255,255,255,.04) inset;
+    padding: 12px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+    position: relative;
+    overflow:hidden;
+    max-width: 760px;
+    margin: 0 auto;
   }
-  .wbWallet{max-width: 72vw;}
-  .wbRight{display:none;} /* optional: hide timestamp to reduce clutter */
-}
-  </style>
+
+  .winnerBanner::before{
+    content:"";
+    position:absolute;
+    inset:-2px;
+    background:
+      radial-gradient(520px 120px at 18% 50%, rgba(0,255,163,.22), transparent 60%),
+      radial-gradient(520px 120px at 82% 50%, rgba(220,31,255,.18), transparent 60%);
+    filter: saturate(1.2);
+    pointer-events:none;
+  }
+  .winnerBanner::after{
+    content:"";
+    position:absolute;
+    top:-40%;
+    left:-30%;
+    width:60%;
+    height:180%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+    transform: rotate(18deg);
+    animation: wbSheen 4.8s ease-in-out infinite;
+    pointer-events:none;
+    opacity:.8;
+  }
+  @keyframes wbSheen{
+    0%, 35% { transform: translateX(-20%) rotate(18deg); opacity:.0; }
+    45%     { opacity:.75; }
+    70%,100%{ transform: translateX(220%) rotate(18deg); opacity:0; }
+  }
+
+  .wbLeft{display:flex; align-items:flex-start; gap:10px; min-width:0; position:relative}
+  .wbDot{
+    width:10px; height:10px; border-radius:999px;
+    background: linear-gradient(135deg, #00FFA3, #DC1FFF);
+    box-shadow: 0 0 22px rgba(0,255,163,.55), 0 0 28px rgba(220,31,255,.35);
+    margin-top: 4px;
+    flex:0 0 auto;
+  }
+  .wbText{min-width:0; position:relative}
+  .wbTop{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  .wbLabel{
+    font-size:12px;
+    letter-spacing:.8px;
+    text-transform:uppercase;
+    color: rgba(234,241,251,.70);
+  }
+  .wbAmt{
+    font-family: var(--mono);
+    font-weight: 900;
+    color: #00FFA3;
+    text-shadow: 0 0 16px rgba(0,255,163,.22);
+    font-size: 13px;
+  }
+  .wbBottom{
+    margin-top: 6px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .wbBottom a{
+    border-bottom: 1px solid rgba(255,255,255,.18);
+    text-decoration:none;
+    color: var(--text);
+  }
+  .wbBottom a:hover{border-bottom-color: rgba(255,255,255,.45)}
+  .wbSep{opacity:.55}
+
+  .wbWallet{
+    font-family: var(--mono);
+    max-width: 54vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .wbRight{position:relative; flex:0 0 auto}
+  .wbMeta{
+    font-family: var(--mono);
+    font-size: 12px;
+    color: rgba(234,241,251,.75);
+    white-space:nowrap;
+  }
+
+  /* dim header while scrolling (optional) */
+  .siteHeader.isScrolling{ opacity:.95; transition: opacity .22s ease; }
+
+  /* ==========================
+     PAGE LAYOUT (unchanged)
+  ========================== */
+  .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:14px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .card{
+    border:1px solid var(--stroke);
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    overflow:hidden;
+    position:relative;
+  }
+  .cardGlow:before{
+    content:"";
+    position:absolute;
+    inset:-2px;
+    background:
+      radial-gradient(600px 240px at 18% 0%, rgba(52,211,153,.22), transparent 60%),
+      radial-gradient(600px 240px at 82% 0%, rgba(124,58,237,.18), transparent 60%);
+    pointer-events:none;
+    filter:saturate(1.1);
+  }
+  .cardGlow>*{position:relative}
+
+  .kicker{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:7px 10px;border-radius:999px;
+    border:1px solid var(--stroke);
+    background:rgba(0,0,0,.20);
+    color:var(--muted);
+    font-size:12px;
+    margin-bottom:10px;
+  }
+  .dot{width:8px;height:8px;border-radius:999px;background:var(--accent);box-shadow:0 0 18px rgba(52,211,153,.55)}
+  h2{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
+  .sub{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.55}
+
+  .statusRow{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .pill{
+    font-size:12px;color:var(--muted);
+    border:1px solid var(--stroke);
+    padding:6px 10px;border-radius:999px;
+    background:rgba(255,255,255,.02);
+    white-space:nowrap;
+    text-decoration:none;
+    border-bottom:none;
+  }
+  .pill strong{color:var(--text);font-weight:700}
+
+  .legacyBanner{
+    margin:10px 0 14px;
+    border:1px solid rgba(255,255,255,.10);
+    background:rgba(0,0,0,.22);
+    border-radius:16px;
+    padding:12px;
+    display:none;
+  }
+  .legacyBanner.show{display:block}
+  .legacyBanner h3{margin:0 0 6px;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+  .legacyBanner p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+  .legacyBanner b{color:var(--text)}
+
+  .countWrap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media (max-width:520px){.countWrap{grid-template-columns:repeat(2,1fr)}}
+  .timeBox{
+    border:1px solid var(--stroke);
+    background:rgba(0,0,0,.22);
+    border-radius:16px;
+    padding:12px 12px 10px;
+    min-height:74px;
+  }
+  .timeLabel{color:var(--muted);font-size:12px;margin-bottom:6px;letter-spacing:.2px}
+  .timeVal{font-family:var(--mono);font-weight:800;font-size:22px;letter-spacing:1px}
+  .timeValAccent{color:var(--accent)}
+
+  .rowTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 10px}
+  .rowTitle .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+  .addr{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:1px solid var(--stroke);
+    background:rgba(0,0,0,.25);
+    border-radius:16px;
+    padding:10px 10px 10px 12px;
+  }
+  .addr code{
+    font-family:var(--mono);
+    font-size:12.5px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .miniBtn{
+    border:1px solid var(--stroke);
+    background:rgba(255,255,255,.03);
+    color:var(--text);
+    border-radius:12px;
+    padding:9px 10px;
+    font-size:12px;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .miniBtn:active{transform:translateY(1px)}
+
+  .trust{margin-top:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18);border-radius:16px;padding:12px}
+  .trust h3{margin:0 0 8px;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+  .trust ul{margin:0;padding-left:18px}
+  .trust li{margin:6px 0;color:var(--muted);font-size:13px;line-height:1.45}
+  .trust b{color:var(--text);font-weight:700}
+
+  .sectionHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .sectionHead h3{margin:0;font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;border:1px solid var(--stroke);
+    background:rgba(255,255,255,.02);color:var(--muted);
+    padding:6px 10px;border-radius:999px;font-size:12px;white-space:nowrap;
+  }
+  .badge strong{color:var(--text);font-weight:700}
+
+  .winners{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  .win{
+    border:1px solid var(--stroke);
+    background:rgba(0,0,0,.18);
+    border-radius:16px;
+    padding:12px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .winLeft{min-width:0}
+  .who{
+    font-family:var(--mono);
+    font-size:13px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    max-width:62vw;
+  }
+  .meta{
+    margin-top:6px;font-size:12px;color:var(--muted);
+    line-height:1.35;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  }
+  a{color:var(--text);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18)}
+  a:hover{border-bottom-color:rgba(255,255,255,.45)}
+  .amt{font-family:var(--mono);font-weight:900;font-size:13px;color:var(--accent);white-space:nowrap}
+
+  .iconBtn{
+    border:1px solid var(--stroke);
+    background:rgba(255,255,255,.03);
+    color:var(--text);
+    border-radius:999px;
+    padding:6px 10px;
+    font-size:12px;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    text-decoration:none;
+    border-bottom:none;
+  }
+  .iconBtn:hover{background:rgba(255,255,255,.06)}
+  .foot{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.55}
+
+  .toast{
+    margin-top:10px;
+    border:1px solid rgba(255,255,255,.10);
+    background:rgba(0,0,0,.25);
+    color:var(--muted);
+    padding:10px 12px;
+    border-radius:14px;
+    font-size:12px;
+    display:none;
+  }
+  .toast.show{display:block}
+
+  aside.card{ max-height: 560px; display:flex; flex-direction:column; }
+  #winnersList{ overflow:auto; max-height: 440px; padding-right: 6px; -webkit-overflow-scrolling: touch; }
+
+  .storyGrid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+  .storyItem{
+    border:1px solid var(--stroke);
+    background:rgba(0,0,0,.18);
+    border-radius:16px;
+    padding:14px;
+  }
+  .storyItem h4{margin:0 0 6px;font-size:13px;letter-spacing:.4px}
+  .storyItem p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+  .mutedLink{border-bottom:1px solid rgba(255,255,255,.12)}
+
+  /* MOBILE winner banner */
+  @media (max-width:560px){
+    .brandText p{display:none;}
+    .winnerBanner{ padding: 11px 11px; }
+    .wbWallet{max-width: 72vw;}
+    .wbRight{display:none;}
+  }
+</style>
 </head>
 
 <body id="top">
   <!-- Sticky topbar -->
-  <div class="topbar" id="topbar">
-    <div class="wrap">
-      <header class="siteHeader">
-  <div class="brand">
-    <img class="logoImg" alt="Jackpot logo" src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
-    <div class="brandText">
-      <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
-      <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
-    </div>
-  </div>
+  <!-- Sticky topbar -->
+<div class="topbar" id="topbar">
+  <div class="wrap">
+    <header class="siteHeader">
 
-  <div class="ctaRow">
-    <a class="btn" href="https://x.com/i/communities/2003622679861973461" target="_blank" rel="noopener">Community ↗</a>
-    <a class="btn btnPrimary" href="https://join.pump.fun/HSag/vuhfqa4u" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
-
-    <div class="menuWrap">
-      <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
-      <div class="menu" id="menu">
-        <a href="#draw" class="menuLink"><span>Next Draw</span><small>timer + status</small></a>
-        <a href="#winners" class="menuLink"><span>Recent Winners</span><small>scrollable payouts</small></a>
-        <a href="#contract" class="menuLink"><span>Contract</span><small>copy CA</small></a>
-        <a href="#story" class="menuLink"><span>The Story</span><small>legacy + CTO era</small></a>
-        <div class="menuHr"></div>
-        <a href="#top" class="menuLink"><span>Back to top</span><small>home</small></a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ✅ Winner banner is UNDER the CTA row (correct) -->
-  <div class="winnerBanner" id="winnerBanner" aria-live="polite">
-    <div class="wbLeft">
-      <span class="wbDot" aria-hidden="true"></span>
-      <div class="wbText">
-        <div class="wbTop">
-          <span class="wbLabel">Latest winner</span>
-          <span class="wbAmt" id="wbAmt">—</span>
-        </div>
-        <div class="wbBottom">
-          <a class="wbWallet" id="wbWallet" href="#" target="_blank" rel="noopener">—</a>
-          <span class="wbSep">•</span>
-          <a class="wbProof" id="wbProof" href="#" target="_blank" rel="noopener">View proof ↗</a>
-          <span class="wbSep">•</span>
-          <a class="wbShare" id="wbShare" href="#" target="_blank" rel="noopener">Share 𝕏 ↗</a>
+      <!-- Brand -->
+      <div class="brand">
+        <img class="logoImg"
+             alt="Jackpot logo"
+             src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
+        <div class="brandText">
+          <h1>
+            Jackpot Token
+            <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span>
+          </h1>
+          <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
         </div>
       </div>
-    </div>
 
-    <div class="wbRight">
-      <span class="wbMeta" id="wbWhen">—</span>
-    </div>
+      <!-- CTAs + Menu (ONLY ONE menu button) -->
+      <div class="ctaRow">
+        <a class="btn"
+           href="https://x.com/i/communities/2003622679861973461"
+           target="_blank" rel="noopener">Community ↗</a>
+
+        <a class="btn btnPrimary"
+           href="https://join.pump.fun/HSag/vuhfqa4u"
+           target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
+
+        <div class="menuWrap">
+          <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
+          <div class="menu" id="menu">
+            <a href="#draw" class="menuLink"><span>Next Draw</span><small>timer + status</small></a>
+            <a href="#winners" class="menuLink"><span>Recent Winners</span><small>scrollable payouts</small></a>
+            <a href="#contract" class="menuLink"><span>Contract</span><small>copy CA</small></a>
+            <a href="#story" class="menuLink"><span>The Story</span><small>legacy + CTO era</small></a>
+            <div class="menuHr"></div>
+            <a href="#top" class="menuLink"><span>Back to top</span><small>home</small></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Latest Winner banner (sticky under buttons as you scroll) -->
+      <div class="winnerBanner" id="winnerBanner" aria-live="polite">
+        <div class="wbLeft">
+          <span class="wbDot" aria-hidden="true"></span>
+
+          <div class="wbText">
+            <div class="wbTop">
+              <span class="wbLabel">Latest winner</span>
+              <span class="wbAmt" id="wbAmt">—</span>
+            </div>
+
+            <div class="wbBottom">
+              <a class="wbWallet" id="wbWallet" href="#" target="_blank" rel="noopener">—</a>
+              <span class="wbSep">•</span>
+              <a class="wbProof" id="wbProof" href="#" target="_blank" rel="noopener">View proof ↗</a>
+              <span class="wbSep">•</span>
+              <a class="wbShare" id="wbShare" href="#" target="_blank" rel="noopener">Share 𝕏 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="wbRight">
+          <span class="wbMeta" id="wbWhen">—</span>
+        </div>
+      </div>
+
+    </header>
   </div>
-</header>
+</div>
 
           <div class="menuWrap">
             <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
@@ -843,145 +704,153 @@ header.isScrolling{
   </div>
 
   <script>
-    const CONFIG = {
-      api: "/.netlify/functions/get-winners",
-      solscanTxBase: "https://solscan.io/tx/",
-      solscanAccountBase: "https://solscan.io/account/",
-      contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
-      community: "https://x.com/i/communities/2003622679861973461",
-      trade: "https://join.pump.fun/HSag/vuhfqa4u",
-      site: "https://www.jackpotcoin.fun/",
-      cadenceMs: 15 * 60 * 1000,
-      ctoWallet: "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK",
-    };
+  const CONFIG = {
+    api: "/.netlify/functions/get-winners",
+    solscanTxBase: "https://solscan.io/tx/",
+    solscanAccountBase: "https://solscan.io/account/",
+    contract: "7ng7j9kyRQNvaJCfJwLcxsWBYxi37biGgudcF3fVaGV2",
+    community: "https://x.com/i/communities/2003622679861973461",
+    trade: "https://join.pump.fun/HSag/vuhfqa4u",
+    site: "https://www.jackpotcoin.fun/",
+    cadenceMs: 15 * 60 * 1000,
+    ctoWallet: "5Y8ty4BuoqVUmfZcLiNkpCPpZmt5Hf653REvJz2BRUrK",
+  };
 
-    let lastPayoutUTC_FROM_API = null;
+  let lastPayoutUTC_FROM_API = null;
 
-    function pad2(n){ return String(n).padStart(2, "0"); }
-    function shortAddr(a){ return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4); }
-    function utcString(iso){ try { return new Date(iso).toUTCString(); } catch { return ""; } }
-    function minutesAgo(iso){
-      if(!iso) return null;
-      const ms = Date.now() - Date.parse(iso);
-      if (!Number.isFinite(ms)) return null;
-      return Math.max(0, Math.floor(ms / 60000));
-    }
-    function formatUtcHM(ms){
-      const d = new Date(ms);
-      return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
-    }
-
-    /* ===== Menu ===== */
-    const menuBtn = document.getElementById("menuBtn");
-    const menu = document.getElementById("menu");
-    menuBtn.addEventListener("click", () => menu.classList.toggle("open"));
-    document.querySelectorAll(".menuLink").forEach(a => {
-      a.addEventListener("click", () => menu.classList.remove("open"));
-    });
-    document.addEventListener("click", (e) => {
-      if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove("open");
-    });
-
-    /* ===== Smart header: dim while scrolling, hide on fast scroll down, show on stop/up ===== */
-    /* ===== Sticky glass header (no snap / no hide) ===== */
-(function stickyGlass(){
-  const bar = document.getElementById("topbar");
-  function onScroll(){
-    bar.classList.toggle("scrolled", (window.scrollY || 0) > 8);
+  function pad2(n){ return String(n).padStart(2, "0"); }
+  function shortAddr(a){ return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4); }
+  function utcString(iso){ try { return new Date(iso).toUTCString(); } catch { return ""; } }
+  function minutesAgo(iso){
+    if(!iso) return null;
+    const ms = Date.now() - Date.parse(iso);
+    if (!Number.isFinite(ms)) return null;
+    return Math.max(0, Math.floor(ms / 60000));
   }
-  onScroll();
-  window.addEventListener("scroll", onScroll, { passive:true });
-})();
+  function formatUtcHM(ms){
+    const d = new Date(ms);
+    return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
+  }
 
-    function showToast(msg){
-      const el = document.getElementById("toast");
-      el.textContent = msg;
-      el.classList.add("show");
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(() => el.classList.remove("show"), 2200);
+  /* ===== MENU ===== */
+  const menuBtn = document.getElementById("menuBtn");
+  const menu = document.getElementById("menu");
+
+  menuBtn.addEventListener("click", () => menu.classList.toggle("open"));
+  document.querySelectorAll(".menuLink").forEach(a => {
+    a.addEventListener("click", () => menu.classList.remove("open"));
+  });
+  document.addEventListener("click", (e) => {
+    if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove("open");
+  });
+
+  /* ===== TOPBAR SCROLL STYLE ===== */
+  (function stickyGlass(){
+    const bar = document.getElementById("topbar");
+    function onScroll(){
+      bar.classList.toggle("scrolled", (window.scrollY || 0) > 8);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive:true });
+  })();
+
+  /* ===== HEADER “DIM WHILE SCROLLING” (optional) ===== */
+  (function headerScrollFade(){
+    const h = document.querySelector(".siteHeader");
+    if(!h) return;
+    let t = null;
+    window.addEventListener("scroll", () => {
+      h.classList.add("isScrolling");
+      clearTimeout(t);
+      t = setTimeout(() => h.classList.remove("isScrolling"), 160);
+    }, { passive:true });
+  })();
+
+  function showToast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+
+  function computeNextDrawMs(nowMs, lastPayoutUTC){
+    const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
+    if (!Number.isNaN(lastMs)) {
+      if (nowMs <= lastMs) return lastMs + CONFIG.cadenceMs;
+      const elapsed = nowMs - lastMs;
+      const steps = Math.floor(elapsed / CONFIG.cadenceMs) + 1;
+      return lastMs + steps * CONFIG.cadenceMs;
+    }
+    return Math.ceil(nowMs / CONFIG.cadenceMs) * CONFIG.cadenceMs;
+  }
+
+  function tickCountdown(){
+    const now = Date.now();
+    const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
+    const diff = Math.max(0, next - now);
+    const totalSec = Math.floor(diff / 1000);
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+
+    document.getElementById("cdMin").textContent = pad2(minutes);
+    document.getElementById("cdSec").textContent = pad2(seconds);
+    document.getElementById("nextUtc").textContent = formatUtcHM(next);
+  }
+  setInterval(tickCountdown, 250);
+  tickCountdown();
+
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("copyBtn");
+    try{
+      await navigator.clipboard.writeText(CONFIG.contract);
+      const old = btn.textContent;
+      btn.textContent = "Copied";
+      setTimeout(() => btn.textContent = old, 900);
+    }catch(e){
+      alert("Copy failed. Please copy manually.");
+    }
+  });
+
+  function setUpdatedBadge(iso){
+    const el = document.getElementById("updatedBadge");
+    el.innerHTML = iso ? `<strong>Updated</strong>: ${utcString(iso)}` : `<strong>Updated</strong>: —`;
+  }
+
+  function setStatus(data){
+    const live = document.getElementById("liveStatus");
+    const last = document.getElementById("lastPayout");
+
+    // CTO wallet link always points to CTO wallet
+    const payoutWalletLink = document.getElementById("payoutWalletLink");
+    payoutWalletLink.href = CONFIG.solscanAccountBase + CONFIG.ctoWallet;
+
+    // Legacy wallet link only if API says we’re in legacy mode
+    const legacyLink = document.getElementById("legacyWalletLink");
+    const legacyBanner = document.getElementById("legacyBanner");
+
+    const inLegacy = (data?.mode === "legacy") && data?.payoutWallet;
+    if (inLegacy) {
+      legacyLink.style.display = "";
+      legacyLink.href = CONFIG.solscanAccountBase + data.payoutWallet;
+      legacyBanner.classList.add("show");
+    } else {
+      legacyLink.style.display = "none";
+      legacyBanner.classList.remove("show");
     }
 
-    function computeNextDrawMs(nowMs, lastPayoutUTC){
-      const lastMs = lastPayoutUTC ? Date.parse(lastPayoutUTC) : NaN;
-      if (!Number.isNaN(lastMs)) {
-        if (nowMs <= lastMs) return lastMs + CONFIG.cadenceMs;
-        const elapsed = nowMs - lastMs;
-        const steps = Math.floor(elapsed / CONFIG.cadenceMs) + 1;
-        return lastMs + steps * CONFIG.cadenceMs;
-      }
-      return Math.ceil(nowMs / CONFIG.cadenceMs) * CONFIG.cadenceMs;
-    }
+    if (data?.stale || data?.error) live.textContent = "Feed unstable (showing last known)";
+    else if (inLegacy) live.textContent = "Legacy mode (history)";
+    else live.textContent = "Live";
 
-    function tickCountdown(){
-      const now = Date.now();
-      const next = computeNextDrawMs(now, lastPayoutUTC_FROM_API);
-      const diff = Math.max(0, next - now);
-      const totalSec = Math.floor(diff / 1000);
-      const minutes = Math.floor(totalSec / 60);
-      const seconds = totalSec % 60;
+    const m = minutesAgo(data?.lastPayoutUTC || lastPayoutUTC_FROM_API);
+    last.textContent = (m === null) ? "—" : `${m}m ago`;
+  }
 
-      document.getElementById("cdMin").textContent = pad2(minutes);
-      document.getElementById("cdSec").textContent = pad2(seconds);
-      document.getElementById("nextUtc").textContent = formatUtcHM(next);
-    }
-    setInterval(tickCountdown, 250);
-    tickCountdown();
-
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const btn = document.getElementById("copyBtn");
-      try{
-        await navigator.clipboard.writeText(CONFIG.contract);
-        const old = btn.textContent;
-        btn.textContent = "Copied";
-        setTimeout(() => btn.textContent = old, 900);
-      }catch(e){
-        alert("Copy failed. Please copy manually.");
-      }
-    });
-
-    function setUpdatedBadge(iso){
-      const el = document.getElementById("updatedBadge");
-      el.innerHTML = iso ? `<strong>Updated</strong>: ${utcString(iso)}` : `<strong>Updated</strong>: —`;
-    }
-
-    function setStatus(data){
-      const live = document.getElementById("liveStatus");
-      const last = document.getElementById("lastPayout");
-
-      // CTO wallet link should ALWAYS be CTO wallet
-      const payoutWalletLink = document.getElementById("payoutWalletLink");
-      payoutWalletLink.href = CONFIG.solscanAccountBase + CONFIG.ctoWallet;
-
-      // Legacy wallet link ONLY if API says we’re in legacy mode
-      const legacyLink = document.getElementById("legacyWalletLink");
-      const legacyBanner = document.getElementById("legacyBanner");
-
-      const inLegacy = (data?.mode === "legacy") && data?.payoutWallet;
-      if (inLegacy) {
-        legacyLink.style.display = "";
-        legacyLink.href = CONFIG.solscanAccountBase + data.payoutWallet; // wallet being displayed
-        legacyBanner.classList.add("show");
-      } else {
-        legacyLink.style.display = "none";
-        legacyBanner.classList.remove("show");
-      }
-
-      if (data?.stale || data?.error) {
-        live.textContent = "Feed unstable (showing last known)";
-      } else if (inLegacy) {
-        live.textContent = "Legacy mode (history)";
-      } else {
-        live.textContent = "Live";
-      }
-
-      const m = minutesAgo(data?.lastPayoutUTC || lastPayoutUTC_FROM_API);
-      last.textContent = (m === null) ? "—" : `${m}m ago`;
-    }
-
-    function xShareUrl(w){
-      const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
-      const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "");
-      const text =
+  function xShareUrl(w){
+    const amt = (typeof w?.amountSOL === "number") ? w.amountSOL.toFixed(4) : (w?.amountSOL ?? "—");
+    const txUrl = w?.solscanUrl || (w?.tx ? (CONFIG.solscanTxBase + w.tx) : "");
+    const text =
 `🎉 Jackpot winner paid on Solana
 💰 ${amt} SOL
 🔍 Proof: ${txUrl}
@@ -993,200 +862,175 @@ Trade JACKPOT:
 ${CONFIG.trade}
 
 Live status:
-${CONFIG.site}`;
-      return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
-    }
+${CONFIG.site}
 
-    /* ============================================
-3) JS: populate banner from newest winner + keep header “fade” behavior
-Drop near your existing <script> (after CONFIG helpers)
-============================================ */
-
-function shortAddr(a){
-  return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4);
-}
-
-function setWinnerBanner(w){
-  const banner = document.getElementById("winnerBanner");
-  if(!banner) return;
-
-  if(!w){
-    document.getElementById("wbAmt").textContent = "—";
-    document.getElementById("wbWallet").textContent = "—";
-    document.getElementById("wbWallet").href = "#";
-    document.getElementById("wbProof").href = "#";
-    document.getElementById("wbShare").href = "#";
-    document.getElementById("wbWhen").textContent = "—";
-    return;
+🙏 Huge thanks to @IamtheTachi for getting Jackpot up and running again.`;
+    return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
   }
 
-  const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
-  const walletFull = (w.wallet || "").trim();
-  const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "#");
+  function setWinnerBanner(w){
+    const banner = document.getElementById("winnerBanner");
+    if(!banner) return;
 
-  document.getElementById("wbAmt").textContent = `${amt} SOL`;
+    const amtEl = document.getElementById("wbAmt");
+    const walletEl = document.getElementById("wbWallet");
+    const proofEl = document.getElementById("wbProof");
+    const shareEl = document.getElementById("wbShare");
+    const whenEl = document.getElementById("wbWhen");
 
-  const walletEl = document.getElementById("wbWallet");
-  walletEl.textContent = shortAddr(walletFull);
-  walletEl.href = walletFull ? (CONFIG.solscanAccountBase + walletFull) : "#";
+    if(!w){
+      amtEl.textContent = "—";
+      walletEl.textContent = "—";
+      walletEl.href = "#";
+      proofEl.href = "#";
+      shareEl.href = "#";
+      whenEl.textContent = "—";
+      return;
+    }
 
-  const proofEl = document.getElementById("wbProof");
-  proofEl.href = txUrl;
+    const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
+    const walletFull = (w.wallet || "").trim();
+    const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "#");
 
-  const shareEl = document.getElementById("wbShare");
-  shareEl.href = xShareUrl(w);
+    amtEl.textContent = `${amt} SOL`;
+    walletEl.textContent = shortAddr(walletFull);
+    walletEl.href = walletFull ? (CONFIG.solscanAccountBase + walletFull) : "#";
+    proofEl.href = txUrl;
+    shareEl.href = xShareUrl(w);
+    whenEl.textContent = w.whenUTC ? new Date(w.whenUTC).toUTCString() : "—";
+  }
 
-  const when = w.whenUTC ? new Date(w.whenUTC).toUTCString() : "—";
-  const whenEl = document.getElementById("wbWhen");
-  if (whenEl) whenEl.textContent = when;
-}
+  function winnerItem(w){
+    const walletFull = (w.wallet || "").trim();
+    const tx = (w.tx || "").trim();
+    const walletShort = shortAddr(walletFull);
 
-/* Call this in bootFromStorage() after renderWinners(...) */
-/// setWinnerBanner(saved.winners?.[0] || null);
+    const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
+    const solscanTx = w.solscanUrl || (tx ? (CONFIG.solscanTxBase + tx) : null);
 
-/* Call this in loadWinners() after renderWinners(list, data.winners); */
-/// setWinnerBanner(data.winners?.[0] || null);
+    const amount = typeof w.amountSOL === "number" ? `${w.amountSOL.toFixed(4)} SOL` : (w.amountSOL || "—");
+    const when = w.whenUTC ? utcString(w.whenUTC) : "—";
 
-/* Optional: smooth dim while scrolling, pop back when user stops */
-(function headerScrollFade(){
-  const h = document.querySelector("header");
-  if(!h) return;
-  let t = null;
-
-  window.addEventListener("scroll", () => {
-    h.classList.add("isScrolling");
-    clearTimeout(t);
-    t = setTimeout(() => h.classList.remove("isScrolling"), 160);
-  }, { passive:true });
-})();
-
-    function winnerItem(w){
-      const walletFull = (w.wallet || "").trim();
-      const tx = (w.tx || "").trim();
-      const walletShort = shortAddr(walletFull);
-
-      const solscanWallet = walletFull ? (CONFIG.solscanAccountBase + walletFull) : null;
-      const solscanTx = w.solscanUrl || (tx ? (CONFIG.solscanTxBase + tx) : null);
-
-      const amount = typeof w.amountSOL === "number" ? `${w.amountSOL.toFixed(4)} SOL` : (w.amountSOL || "—");
-      const when = w.whenUTC ? utcString(w.whenUTC) : "—";
-
-      const li = document.createElement("li");
-      li.className = "win";
-      li.innerHTML = `
-        <div class="winLeft">
-          <div class="who" title="${walletFull}">
-            ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
-          </div>
-          <div class="meta">
-            <span>${when}</span>
-            ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
-            ${solscanTx ? `<span>•</span><a class="iconBtn" href="${xShareUrl(w)}" target="_blank" rel="noopener">Share 𝕏 ↗</a>` : ""}
-          </div>
+    const li = document.createElement("li");
+    li.className = "win";
+    li.innerHTML = `
+      <div class="winLeft">
+        <div class="who" title="${walletFull}">
+          ${solscanWallet ? `<a href="${solscanWallet}" target="_blank" rel="noopener">${walletShort}</a>` : walletShort}
         </div>
-        <div class="amt">${amount}</div>
-      `;
-      return li;
+        <div class="meta">
+          <span>${when}</span>
+          ${solscanTx ? `<span>•</span><a href="${solscanTx}" target="_blank" rel="noopener">View proof ↗</a>` : ""}
+          ${solscanTx ? `<span>•</span><a class="iconBtn" href="${xShareUrl(w)}" target="_blank" rel="noopener">Share 𝕏 ↗</a>` : ""}
+        </div>
+      </div>
+      <div class="amt">${amount}</div>
+    `;
+    return li;
+  }
+
+  function renderWinners(listEl, winners){
+    const items = Array.isArray(winners) ? winners : [];
+    listEl.innerHTML = "";
+
+    if (!items.length) {
+      const empty = document.createElement("li");
+      empty.className = "win";
+      empty.innerHTML = `
+        <div class="winLeft">
+          <div class="who">No payouts detected yet</div>
+          <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
+        </div>
+        <div class="amt">—</div>`;
+      listEl.appendChild(empty);
+      return;
     }
 
-    function renderWinners(listEl, winners){
-      const items = Array.isArray(winners) ? winners : [];
-      listEl.innerHTML = "";
+    items.forEach(w => listEl.appendChild(winnerItem(w)));
+  }
 
-      if (!items.length) {
-        const empty = document.createElement("li");
-        empty.className = "win";
-        empty.innerHTML = `
-          <div class="winLeft">
-            <div class="who">No payouts detected yet</div>
-            <div class="meta">When the payout wallet sends a System Program SOL transfer, it will appear here with proof.</div>
-          </div>
-          <div class="amt">—</div>`;
-        listEl.appendChild(empty);
-        return;
-      }
+  (function bootFromStorage(){
+    const list = document.getElementById("winnersList");
+    const key = "jackpot_last_good_payload_v2";
+    try{
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
+      if (saved?.winners?.length) {
+        if (saved.lastPayoutUTC) lastPayoutUTC_FROM_API = saved.lastPayoutUTC;
 
-      items.forEach(w => listEl.appendChild(winnerItem(w)));
-    }
-
-    (function bootFromStorage(){
-      const list = document.getElementById("winnersList");
-      const key = "jackpot_last_good_payload_v2";
-      try{
-        const saved = JSON.parse(localStorage.getItem(key) || "null");
-        if (saved?.winners?.length) {
-          if (saved.lastPayoutUTC) lastPayoutUTC_FROM_API = saved.lastPayoutUTC;
-          if (typeof saved.cadenceSeconds === "number" && saved.cadenceSeconds > 0) {
-            CONFIG.cadenceMs = saved.cadenceSeconds * 1000;
-            document.getElementById("cadenceText").textContent = `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
-          }
-          setUpdatedBadge(saved.updatedUTC || null);
-          setStatus(saved);
-          renderWinners(list, saved.winners);
-        }
-      }catch{}
-    })();
-
-    async function loadWinners(){
-      const list = document.getElementById("winnersList");
-      const keyLastGood = "jackpot_last_good_payload_v2";
-
-      try{
-        const res = await fetch(`${CONFIG.api}?limit=200`, { cache: "no-store" });
-        if(!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
-
-        // Total paid + SOL price
-        const totalPaidEl = document.getElementById("totalPaid");
-        const solPriceEl  = document.getElementById("solPrice");
-
-        if (typeof data?.solUsd === "number") solPriceEl.textContent = `$${data.solUsd.toFixed(2)}`;
-        else solPriceEl.textContent = "—";
-
-        if (typeof data?.totalPaidSOLTracked === "number") {
-          const sol = data.totalPaidSOLTracked;
-          const usd = (typeof data?.totalPaidUSDTracked === "number") ? data.totalPaidUSDTracked : null;
-          totalPaidEl.textContent = (usd !== null)
-            ? `${sol.toFixed(4)} SOL (~$${usd.toFixed(2)})`
-            : `${sol.toFixed(4)} SOL`;
-        } else {
-          totalPaidEl.textContent = "—";
-        }
-
-        if (data?.lastPayoutUTC) lastPayoutUTC_FROM_API = data.lastPayoutUTC;
-
-        if (typeof data?.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
-          CONFIG.cadenceMs = data.cadenceSeconds * 1000;
+        if (typeof saved.cadenceSeconds === "number" && saved.cadenceSeconds > 0) {
+          CONFIG.cadenceMs = saved.cadenceSeconds * 1000;
           document.getElementById("cadenceText").textContent = `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
         }
 
-        setUpdatedBadge(data.updatedUTC || null);
-        setStatus(data);
-
-        if (Array.isArray(data?.winners) && data.winners.length) {
-          renderWinners(list, data.winners);
-
-          localStorage.setItem(keyLastGood, JSON.stringify({
-            updatedUTC: data.updatedUTC,
-            lastPayoutUTC: data.lastPayoutUTC || lastPayoutUTC_FROM_API,
-            cadenceSeconds: data.cadenceSeconds || Math.round(CONFIG.cadenceMs / 1000),
-            winners: data.winners,
-            mode: data.mode || "active",
-            payoutWallet: data.payoutWallet || null,
-          }));
-        } else {
-          showToast("Waiting for RPC index… keeping last winners");
-        }
-
-        if (data?.stale || data?.error) showToast("RPC hiccup — showing last known");
-      }catch(e){
-        showToast("Feed unstable — keeping last winners");
-        document.getElementById("liveStatus").textContent = "Feed unstable (showing last known)";
+        setUpdatedBadge(saved.updatedUTC || null);
+        setStatus(saved);
+        renderWinners(list, saved.winners);
+        setWinnerBanner(saved.winners?.[0] || null);
       }
-    }
+    }catch{}
+  })();
 
-    loadWinners();
-    setInterval(loadWinners, 12_000);
-  </script>
+  async function loadWinners(){
+    const list = document.getElementById("winnersList");
+    const keyLastGood = "jackpot_last_good_payload_v2";
+
+    try{
+      const res = await fetch(`${CONFIG.api}?limit=200`, { cache: "no-store" });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+
+      // Total paid + SOL price
+      const totalPaidEl = document.getElementById("totalPaid");
+      const solPriceEl  = document.getElementById("solPrice");
+
+      if (typeof data?.solUsd === "number") solPriceEl.textContent = `$${data.solUsd.toFixed(2)}`;
+      else solPriceEl.textContent = "—";
+
+      if (typeof data?.totalPaidSOLTracked === "number") {
+        const sol = data.totalPaidSOLTracked;
+        const usd = (typeof data?.totalPaidUSDTracked === "number") ? data.totalPaidUSDTracked : null;
+        totalPaidEl.textContent = (usd !== null)
+          ? `${sol.toFixed(4)} SOL (~$${usd.toFixed(2)})`
+          : `${sol.toFixed(4)} SOL`;
+      } else {
+        totalPaidEl.textContent = "—";
+      }
+
+      if (data?.lastPayoutUTC) lastPayoutUTC_FROM_API = data.lastPayoutUTC;
+
+      if (typeof data?.cadenceSeconds === "number" && data.cadenceSeconds > 0) {
+        CONFIG.cadenceMs = data.cadenceSeconds * 1000;
+        document.getElementById("cadenceText").textContent = `~${Math.round(CONFIG.cadenceMs / 60000)} min`;
+      }
+
+      setUpdatedBadge(data.updatedUTC || null);
+      setStatus(data);
+
+      if (Array.isArray(data?.winners) && data.winners.length) {
+        renderWinners(list, data.winners);
+        setWinnerBanner(data.winners?.[0] || null);
+
+        localStorage.setItem(keyLastGood, JSON.stringify({
+          updatedUTC: data.updatedUTC,
+          lastPayoutUTC: data.lastPayoutUTC || lastPayoutUTC_FROM_API,
+          cadenceSeconds: data.cadenceSeconds || Math.round(CONFIG.cadenceMs / 1000),
+          winners: data.winners,
+          mode: data.mode || "active",
+          payoutWallet: data.payoutWallet || null,
+        }));
+      } else {
+        showToast("Waiting for RPC index… keeping last winners");
+      }
+
+      if (data?.stale || data?.error) showToast("RPC hiccup — showing last known");
+    }catch(e){
+      showToast("Feed unstable — keeping last winners");
+      document.getElementById("liveStatus").textContent = "Feed unstable (showing last known)";
+    }
+  }
+
+  loadWinners();
+  setInterval(loadWinners, 12_000);
+</script>
 </body>
 </html>
