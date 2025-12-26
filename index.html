@@ -498,6 +498,143 @@ header{
     top:54px;
   }
 }
+
+    /* ============================================
+2) CSS: sticky header + Solana-glow winner banner
+============================================ */
+
+/* make header stick to top as you scroll */
+header{
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 12px 0 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(7,10,15,.86), rgba(7,10,15,.55));
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+/* smooth “dim while scrolling” optional (JS below toggles .isScrolling) */
+header.isScrolling{
+  opacity: .92;
+  transition: opacity .22s ease;
+}
+
+/* winner banner sits UNDER the CTA row */
+.winnerBanner{
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  background:
+    radial-gradient(900px 180px at 10% 50%, rgba(0,255,163,.14), transparent 60%),
+    radial-gradient(900px 180px at 90% 50%, rgba(220,31,255,.14), transparent 60%),
+    rgba(0,0,0,.22);
+  box-shadow:
+    0 16px 55px rgba(0,0,0,.55),
+    0 0 0 1px rgba(255,255,255,.04) inset;
+  padding: 12px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  position: relative;
+  overflow:hidden;
+}
+
+/* Solana glow ring + animated sheen */
+.winnerBanner::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(520px 120px at 18% 50%, rgba(0,255,163,.22), transparent 60%),
+    radial-gradient(520px 120px at 82% 50%, rgba(220,31,255,.18), transparent 60%);
+  filter: saturate(1.2);
+  pointer-events:none;
+}
+.winnerBanner::after{
+  content:"";
+  position:absolute;
+  top:-40%;
+  left:-30%;
+  width:60%;
+  height:180%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+  transform: rotate(18deg);
+  animation: wbSheen 4.8s ease-in-out infinite;
+  pointer-events:none;
+  opacity:.8;
+}
+@keyframes wbSheen{
+  0%, 35% { transform: translateX(-20%) rotate(18deg); opacity:.0; }
+  45%     { opacity:.75; }
+  70%,100%{ transform: translateX(220%) rotate(18deg); opacity:0; }
+}
+
+.wbLeft{display:flex; align-items:flex-start; gap:10px; min-width:0; position:relative}
+.wbDot{
+  width:10px; height:10px; border-radius:999px;
+  background: linear-gradient(135deg, #00FFA3, #DC1FFF);
+  box-shadow: 0 0 22px rgba(0,255,163,.55), 0 0 28px rgba(220,31,255,.35);
+  margin-top: 4px;
+  flex:0 0 auto;
+}
+.wbText{min-width:0; position:relative}
+.wbTop{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.wbLabel{
+  font-size:12px;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color: rgba(234,241,251,.70);
+}
+.wbAmt{
+  font-family: var(--mono);
+  font-weight: 900;
+  color: #00FFA3;
+  text-shadow: 0 0 16px rgba(0,255,163,.22);
+  font-size: 13px;
+}
+.wbBottom{
+  margin-top: 6px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wbBottom a{
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  text-decoration:none;
+}
+.wbBottom a:hover{border-bottom-color: rgba(255,255,255,.45)}
+.wbSep{opacity:.55}
+
+.wbWallet{
+  font-family: var(--mono);
+  max-width: 54vw;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.wbRight{position:relative; flex:0 0 auto}
+.wbMeta{
+  font-family: var(--mono);
+  font-size: 12px;
+  color: rgba(234,241,251,.75);
+  white-space:nowrap;
+}
+
+/* mobile: keep it clean */
+@media (max-width:560px){
+  .winnerBanner{
+    padding: 11px 11px;
+  }
+  .wbWallet{max-width: 72vw;}
+  .wbRight{display:none;} /* optional: hide timestamp to reduce clutter */
+}
   </style>
 </head>
 
@@ -517,6 +654,32 @@ header{
         <div class="ctaRow">
           <a class="btn" href="https://x.com/i/communities/2003622679861973461" target="_blank" rel="noopener">Community ↗</a>
           <a class="btn btnPrimary" href="https://join.pump.fun/HSag/vuhfqa4u" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
+
+          <!-- ============================================
+1) HTML: drop this INSIDE <header> right after .ctaRow
+============================================ -->
+<div class="winnerBanner" id="winnerBanner" aria-live="polite">
+  <div class="wbLeft">
+    <span class="wbDot" aria-hidden="true"></span>
+    <div class="wbText">
+      <div class="wbTop">
+        <span class="wbLabel">Latest winner</span>
+        <span class="wbAmt" id="wbAmt">—</span>
+      </div>
+      <div class="wbBottom">
+        <a class="wbWallet" id="wbWallet" href="#" target="_blank" rel="noopener">—</a>
+        <span class="wbSep">•</span>
+        <a class="wbProof" id="wbProof" href="#" target="_blank" rel="noopener">View proof ↗</a>
+        <span class="wbSep">•</span>
+        <a class="wbShare" id="wbShare" href="#" target="_blank" rel="noopener">Share 𝕏 ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="wbRight">
+    <span class="wbMeta" id="wbWhen">—</span>
+  </div>
+</div>
 
           <div class="menuWrap">
             <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
@@ -821,6 +984,69 @@ Live status:
 ${CONFIG.site}`;
       return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
     }
+
+    /* ============================================
+3) JS: populate banner from newest winner + keep header “fade” behavior
+Drop near your existing <script> (after CONFIG helpers)
+============================================ */
+
+function shortAddr(a){
+  return (!a || a.length < 12) ? (a || "") : a.slice(0,6)+"…"+a.slice(-4);
+}
+
+function setWinnerBanner(w){
+  const banner = document.getElementById("winnerBanner");
+  if(!banner) return;
+
+  if(!w){
+    document.getElementById("wbAmt").textContent = "—";
+    document.getElementById("wbWallet").textContent = "—";
+    document.getElementById("wbWallet").href = "#";
+    document.getElementById("wbProof").href = "#";
+    document.getElementById("wbShare").href = "#";
+    document.getElementById("wbWhen").textContent = "—";
+    return;
+  }
+
+  const amt = (typeof w.amountSOL === "number") ? w.amountSOL.toFixed(4) : w.amountSOL;
+  const walletFull = (w.wallet || "").trim();
+  const txUrl = w.solscanUrl || (w.tx ? (CONFIG.solscanTxBase + w.tx) : "#");
+
+  document.getElementById("wbAmt").textContent = `${amt} SOL`;
+
+  const walletEl = document.getElementById("wbWallet");
+  walletEl.textContent = shortAddr(walletFull);
+  walletEl.href = walletFull ? (CONFIG.solscanAccountBase + walletFull) : "#";
+
+  const proofEl = document.getElementById("wbProof");
+  proofEl.href = txUrl;
+
+  const shareEl = document.getElementById("wbShare");
+  shareEl.href = xShareUrl(w);
+
+  const when = w.whenUTC ? new Date(w.whenUTC).toUTCString() : "—";
+  const whenEl = document.getElementById("wbWhen");
+  if (whenEl) whenEl.textContent = when;
+}
+
+/* Call this in bootFromStorage() after renderWinners(...) */
+/// setWinnerBanner(saved.winners?.[0] || null);
+
+/* Call this in loadWinners() after renderWinners(list, data.winners); */
+/// setWinnerBanner(data.winners?.[0] || null);
+
+/* Optional: smooth dim while scrolling, pop back when user stops */
+(function headerScrollFade(){
+  const h = document.querySelector("header");
+  if(!h) return;
+  let t = null;
+
+  window.addEventListener("scroll", () => {
+    h.classList.add("isScrolling");
+    clearTimeout(t);
+    t = setTimeout(() => h.classList.remove("isScrolling"), 160);
+  }, { passive:true });
+})();
 
     function winnerItem(w){
       const walletFull = (w.wallet || "").trim();
