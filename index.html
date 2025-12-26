@@ -642,44 +642,56 @@ header.isScrolling{
   <!-- Sticky topbar -->
   <div class="topbar" id="topbar">
     <div class="wrap">
-      <header>
-        <div class="brand">
-          <img class="logoImg" alt="Jackpot logo" src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
-          <div class="brandText">
-            <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
-            <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
-          </div>
-        </div>
+      <header class="siteHeader">
+  <div class="brand">
+    <img class="logoImg" alt="Jackpot logo" src="https://raw.githubusercontent.com/LandoCrissian/Jackpot-Coin/refs/heads/main/IMG_9059.jpeg" />
+    <div class="brandText">
+      <h1>Jackpot Token <span style="color:var(--muted); font-weight:700;">(JACKPOT)</span></h1>
+      <p id="subtitle">SOL payouts • On-chain verification • Live cadence</p>
+    </div>
+  </div>
 
-        <div class="ctaRow">
-          <a class="btn" href="https://x.com/i/communities/2003622679861973461" target="_blank" rel="noopener">Community ↗</a>
-          <a class="btn btnPrimary" href="https://join.pump.fun/HSag/vuhfqa4u" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
+  <div class="ctaRow">
+    <a class="btn" href="https://x.com/i/communities/2003622679861973461" target="_blank" rel="noopener">Community ↗</a>
+    <a class="btn btnPrimary" href="https://join.pump.fun/HSag/vuhfqa4u" target="_blank" rel="noopener">Trade on Pump v2 ↗</a>
 
-          <!-- ============================================
-1) HTML: drop this INSIDE <header> right after .ctaRow
-============================================ -->
-<div class="winnerBanner" id="winnerBanner" aria-live="polite">
-  <div class="wbLeft">
-    <span class="wbDot" aria-hidden="true"></span>
-    <div class="wbText">
-      <div class="wbTop">
-        <span class="wbLabel">Latest winner</span>
-        <span class="wbAmt" id="wbAmt">—</span>
-      </div>
-      <div class="wbBottom">
-        <a class="wbWallet" id="wbWallet" href="#" target="_blank" rel="noopener">—</a>
-        <span class="wbSep">•</span>
-        <a class="wbProof" id="wbProof" href="#" target="_blank" rel="noopener">View proof ↗</a>
-        <span class="wbSep">•</span>
-        <a class="wbShare" id="wbShare" href="#" target="_blank" rel="noopener">Share 𝕏 ↗</a>
+    <div class="menuWrap">
+      <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
+      <div class="menu" id="menu">
+        <a href="#draw" class="menuLink"><span>Next Draw</span><small>timer + status</small></a>
+        <a href="#winners" class="menuLink"><span>Recent Winners</span><small>scrollable payouts</small></a>
+        <a href="#contract" class="menuLink"><span>Contract</span><small>copy CA</small></a>
+        <a href="#story" class="menuLink"><span>The Story</span><small>legacy + CTO era</small></a>
+        <div class="menuHr"></div>
+        <a href="#top" class="menuLink"><span>Back to top</span><small>home</small></a>
       </div>
     </div>
   </div>
 
-  <div class="wbRight">
-    <span class="wbMeta" id="wbWhen">—</span>
+  <!-- ✅ Winner banner is UNDER the CTA row (correct) -->
+  <div class="winnerBanner" id="winnerBanner" aria-live="polite">
+    <div class="wbLeft">
+      <span class="wbDot" aria-hidden="true"></span>
+      <div class="wbText">
+        <div class="wbTop">
+          <span class="wbLabel">Latest winner</span>
+          <span class="wbAmt" id="wbAmt">—</span>
+        </div>
+        <div class="wbBottom">
+          <a class="wbWallet" id="wbWallet" href="#" target="_blank" rel="noopener">—</a>
+          <span class="wbSep">•</span>
+          <a class="wbProof" id="wbProof" href="#" target="_blank" rel="noopener">View proof ↗</a>
+          <span class="wbSep">•</span>
+          <a class="wbShare" id="wbShare" href="#" target="_blank" rel="noopener">Share 𝕏 ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="wbRight">
+      <span class="wbMeta" id="wbWhen">—</span>
+    </div>
   </div>
-</div>
+</header>
 
           <div class="menuWrap">
             <button class="btn iconOnly" id="menuBtn" type="button" aria-label="Menu">☰</button>
