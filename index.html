@@ -35,6 +35,18 @@ body{
   margin:0;
   font-family:var(--sans);
   color:var(--text);
+  background: var(--bg);           /* solid base */
+  background-color: var(--bg);
+  overflow-x:hidden;
+}
+
+/* put the gradients on a fixed layer so they DON'T scroll (removes the “bands”) */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
   background:
     radial-gradient(900px 420px at 15% -10%, rgba(52,211,153,.18), transparent 60%),
     radial-gradient(800px 420px at 85% 0%, rgba(124,58,237,.18), transparent 55%),
@@ -89,10 +101,10 @@ body{
   content:"";
   position:absolute;
   left:0; right:0;
-  bottom:-18px;
-  height:18px;
+  bottom:-44px;
+  height:44px;
   pointer-events:none;
-  background: linear-gradient(180deg, rgba(7,10,15,.70), rgba(7,10,15,0));
+  background: linear-gradient(180deg, rgba(7,10,15,.92), rgba(7,10,15,0));
 }
 
 .topbar.scrolled{
@@ -584,6 +596,21 @@ html.ios .topbar::after{
   height: 28px;
   bottom: -28px;
   background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
+}
+
+    html.ios .topbar{
+  /* iOS Safari is the main culprit for banding with blur + transparency */
+  background: rgba(7,10,15,.95);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+html.ios .topbar::before{
+  /* simplify the gradient layer for iOS so it doesn’t “step” */
+  background:
+    radial-gradient(900px 240px at 18% 0%, rgba(52,211,153,.08), transparent 60%),
+    radial-gradient(900px 240px at 82% 0%, rgba(124,58,237,.08), transparent 60%),
+    linear-gradient(180deg, rgba(7,10,15,.96), rgba(7,10,15,.78));
 }
 </style>
 </head>
