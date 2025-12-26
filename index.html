@@ -715,6 +715,36 @@ header.siteHeader .winnerBanner{
   .wbWallet{max-width: 72vw;}
   .wbRight{display:none;}
 }
+
+    /* ===== FIX: dropdown menu should float ABOVE winner banner ===== */
+
+/* make sure header is a stacking context */
+header.siteHeader{
+  position: relative;
+  z-index: 50;
+}
+
+/* winner banner sits “below” in stacking order */
+.winnerBanner{
+  position: relative;
+  z-index: 1;
+}
+
+/* keep banner glow layers behind everything */
+.winnerBanner::before,
+.winnerBanner::after{
+  z-index: 0;
+}
+
+/* menu button + dropdown always on top */
+.menuWrap{
+  position: relative;
+  z-index: 2000;
+}
+
+.menu{
+  z-index: 3000;
+}
 </style>
 </head>
 
