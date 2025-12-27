@@ -28,6 +28,7 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
 }
+
 *{box-sizing:border-box}
 html,body{height:100%}
 html{scroll-behavior:smooth}
@@ -41,7 +42,7 @@ body{
   overflow-x:hidden;
 }
 
-/* gradients on fixed layer so they DON'T scroll (removes “bands”) */
+/* fixed gradient layer = removes scroll “bands” */
 body::before{
   content:"";
   position:fixed;
@@ -58,23 +59,28 @@ body::before{
 .wrapInner{padding-top:14px}
 
 /* ==========================
-   STICKY TOPBAR (single truth)
+   STICKY TOPBAR (no clipping!)
+   Fixes: seam/banding + dropdown getting cut off
 ========================== */
 .topbar{
   position:sticky;
   top:0;
   z-index:9999;
 
-  /* ✅ critical: allow dropdown to escape */
-  overflow: visible;
-
+  /* iOS safe area */
   padding: calc(10px + env(safe-area-inset-top)) 0 10px;
 
+  /* stable glass */
   background: rgba(7,10,15,.86);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255,255,255,.08);
 
+  /* IMPORTANT: do NOT clip dropdowns */
+  overflow: visible !important;
+  contain: none !important;
+
+  /* iOS compositing stability (safe) */
   isolation:isolate;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -83,7 +89,7 @@ body::before{
   transition: background .18s ease, padding .18s ease, border-color .18s ease;
 }
 
-/* gradients on own layer */
+/* gradients live on their own layer so they don’t “cut” */
 .topbar::before{
   content:"";
   position:absolute;
@@ -96,7 +102,8 @@ body::before{
     linear-gradient(180deg, rgba(7,10,15,.88), rgba(7,10,15,.62));
 }
 
-/* smooth tail under header */
+/* smooth “tail” under header so it flows into dark content
+   KEEP THIS BEHIND EVERYTHING so it cannot block the menu */
 .topbar::after{
   content:"";
   position:absolute;
@@ -104,6 +111,7 @@ body::before{
   bottom:-44px;
   height:44px;
   pointer-events:none;
+  z-index:-1; /* KEY: prevents tail from sitting above dropdown */
   background: linear-gradient(180deg, rgba(7,10,15,.92), rgba(7,10,15,0));
 }
 
@@ -113,14 +121,11 @@ body::before{
 }
 
 /* ==========================
-   HEADER GRID
+   HEADER GRID (single truth)
 ========================== */
 header.siteHeader{
-  position:relative;
+  position:relative; /* stacking context for dropdown */
   z-index:50;
-
-  /* ✅ critical: allow dropdown to escape */
-  overflow: visible;
 
   display:grid;
   grid-template-columns: 1fr auto;
@@ -192,16 +197,18 @@ header.siteHeader{
 }
 
 /* ==========================
-   MENU (fixes clipping)
+   MENU (always on top, never clipped)
 ========================== */
-.menuWrap{ position:relative; z-index:20000; }
+.menuWrap{
+  position:relative;
+  z-index:20000;     /* above banner */
+  overflow: visible; /* ensure no clipping */
+}
+
 .menu{
   position:absolute;
   right:0;
-
-  /* ✅ opens below button reliably */
-  top: calc(100% + 8px);
-
+  top:54px;
   width:min(300px, 88vw);
   border:1px solid var(--stroke);
   background:rgba(10,12,18,.94);
@@ -211,6 +218,7 @@ header.siteHeader{
   display:none;
   z-index:30000;
 
+  /* extra safety for iOS */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }
@@ -259,6 +267,7 @@ header.siteHeader .winnerBanner{
   justify-content:space-between;
   gap:10px;
 }
+
 header.siteHeader .winnerBanner::before{
   content:"";
   position:absolute;
@@ -346,6 +355,7 @@ header.siteHeader .winnerBanner > *{ position:relative; z-index:1; }
   white-space:nowrap;
 }
 
+/* optional */
 .siteHeader.isScrolling{ opacity:.95; transition: opacity .22s ease; }
 
 /* ==========================
@@ -490,7 +500,6 @@ h2{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
   line-height:1.35;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
 }
 
-/* global link style (buttons override with border-bottom:none) */
 a{color:var(--text);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18)}
 a:hover{border-bottom-color:rgba(255,255,255,.45)}
 
@@ -567,32 +576,28 @@ aside.card{ max-height: 560px; display:flex; flex-direction:column; }
 
   header.siteHeader .winnerBanner{ padding:11px; }
   .wbWallet{max-width:72vw}
-  .wbRight{display:none}
+  .wbRight{display:none;}
 
-  .menu{ top: calc(100% + 10px); }
+  /* ensure dropdown has room on small screens */
+  .menu{ top: 52px; }
 }
 
 /* ==========================
-   iOS / in-app stability
+   iOS tweaks (SAFE, no clipping)
 ========================== */
-.topbar{ contain: paint; }
+.topbar{
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
 
+/* optional: soften banding on iOS while keeping dropdown working */
 html.ios .topbar{
-  background: rgba(7,10,15,.95);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  background: rgba(7,10,15,.92) !important;
 }
-
-html.ios .topbar::before{
-  background:
-    radial-gradient(900px 240px at 18% 0%, rgba(52,211,153,.08), transparent 60%),
-    radial-gradient(900px 240px at 82% 0%, rgba(124,58,237,.08), transparent 60%),
-    linear-gradient(180deg, rgba(7,10,15,.96), rgba(7,10,15,.78));
-}
-
+html.ios .topbar::before{ opacity:.75; }
 html.ios .topbar::after{
-  height: 28px;
-  bottom: -28px;
+  height:28px;
+  bottom:-28px;
   background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
 }
 </style>
