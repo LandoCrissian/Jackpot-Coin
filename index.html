@@ -33,6 +33,14 @@
 html,body{height:100%}
 html{scroll-behavior:smooth}
 
+/* ✅ Anchor scroll fix (sticky header offset) */
+html{
+  scroll-padding-top: calc(160px + env(safe-area-inset-top));
+}
+#top,#draw,#winners,#contract,#story{
+  scroll-margin-top: calc(160px + env(safe-area-inset-top));
+}
+
 body{
   margin:0;
   font-family:var(--sans);
@@ -42,7 +50,7 @@ body{
   overflow-x:hidden;
 }
 
-/* fixed gradient layer = removes scroll “bands” */
+/* ✅ put the gradients on a fixed layer so they DON'T scroll (removes iOS “bands”) */
 body::before{
   content:"";
   position:fixed;
@@ -59,37 +67,27 @@ body::before{
 .wrapInner{padding-top:14px}
 
 /* ==========================
-   STICKY TOPBAR (no clipping!)
-   Fixes: seam/banding + dropdown getting cut off
+   STICKY TOPBAR
+   ✅ IMPORTANT: no contain:paint (it clips the dropdown & “tail”)
 ========================== */
 .topbar{
   position:sticky;
   top:0;
   z-index:9999;
 
-  /* iOS safe area */
   padding: calc(10px + env(safe-area-inset-top)) 0 10px;
 
-  /* stable glass */
   background: rgba(7,10,15,.86);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255,255,255,.08);
 
-  /* IMPORTANT: do NOT clip dropdowns */
-  overflow: visible !important;
-  contain: none !important;
-
-  /* iOS compositing stability (safe) */
   isolation:isolate;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: transform;
-
+  will-change: background;
   transition: background .18s ease, padding .18s ease, border-color .18s ease;
 }
 
-/* gradients live on their own layer so they don’t “cut” */
+/* gradients live on their own layer */
 .topbar::before{
   content:"";
   position:absolute;
@@ -102,16 +100,14 @@ body::before{
     linear-gradient(180deg, rgba(7,10,15,.88), rgba(7,10,15,.62));
 }
 
-/* smooth “tail” under header so it flows into dark content
-   KEEP THIS BEHIND EVERYTHING so it cannot block the menu */
+/* ✅ longer tail so it blends further down and never “hard stops” */
 .topbar::after{
   content:"";
   position:absolute;
   left:0; right:0;
-  bottom:-44px;
-  height:44px;
+  bottom:-64px;
+  height:64px;
   pointer-events:none;
-  z-index:-1; /* KEY: prevents tail from sitting above dropdown */
   background: linear-gradient(180deg, rgba(7,10,15,.92), rgba(7,10,15,0));
 }
 
@@ -121,10 +117,10 @@ body::before{
 }
 
 /* ==========================
-   HEADER GRID (single truth)
+   HEADER GRID
 ========================== */
 header.siteHeader{
-  position:relative; /* stacking context for dropdown */
+  position:relative;
   z-index:50;
 
   display:grid;
@@ -136,6 +132,9 @@ header.siteHeader{
   align-items:center;
 
   padding: 6px 0 6px;
+
+  /* ✅ ensure dropdown can render outside without being clipped */
+  overflow: visible;
 }
 
 .brand{grid-area:brand;display:flex;align-items:center;gap:12px;min-width:0}
@@ -197,14 +196,10 @@ header.siteHeader{
 }
 
 /* ==========================
-   MENU (always on top, never clipped)
+   MENU
+   ✅ Key: remove clipping + raise z-index + allow overflow
 ========================== */
-.menuWrap{
-  position:relative;
-  z-index:20000;     /* above banner */
-  overflow: visible; /* ensure no clipping */
-}
-
+.menuWrap{ position:relative; z-index:30000; overflow:visible; }
 .menu{
   position:absolute;
   right:0;
@@ -216,11 +211,7 @@ header.siteHeader{
   box-shadow:var(--shadow);
   padding:10px;
   display:none;
-  z-index:30000;
-
-  /* extra safety for iOS */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  z-index:40000;
 }
 .menu.open{display:block}
 .menu a{
@@ -250,7 +241,7 @@ header.siteHeader .winnerBanner{
   max-width:760px;
   margin:0 auto;
   position:relative;
-  z-index:1; /* below dropdown */
+  z-index:1;
   overflow:hidden;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.12);
@@ -267,7 +258,6 @@ header.siteHeader .winnerBanner{
   justify-content:space-between;
   gap:10px;
 }
-
 header.siteHeader .winnerBanner::before{
   content:"";
   position:absolute;
@@ -355,7 +345,6 @@ header.siteHeader .winnerBanner > *{ position:relative; z-index:1; }
   white-space:nowrap;
 }
 
-/* optional */
 .siteHeader.isScrolling{ opacity:.95; transition: opacity .22s ease; }
 
 /* ==========================
@@ -576,57 +565,23 @@ aside.card{ max-height: 560px; display:flex; flex-direction:column; }
 
   header.siteHeader .winnerBanner{ padding:11px; }
   .wbWallet{max-width:72vw}
-  .wbRight{display:none;}
+  .wbRight{display:none}
 
-  /* ensure dropdown has room on small screens */
-  .menu{ top: 52px; }
+  /* mobile anchor tuning */
+  html{
+    scroll-padding-top: calc(180px + env(safe-area-inset-top));
+  }
+  #top,#draw,#winners,#contract,#story{
+    scroll-margin-top: calc(180px + env(safe-area-inset-top));
+  }
 }
 
 /* ==========================
-   iOS tweaks (SAFE, no clipping)
+   iOS stability tweaks (no clipping)
 ========================== */
-.topbar{
-  backface-visibility:hidden;
-  -webkit-backface-visibility:hidden;
-}
-
-/* optional: soften banding on iOS while keeping dropdown working */
 html.ios .topbar{
-  background: rgba(7,10,15,.92) !important;
-}
-html.ios .topbar::before{ opacity:.75; }
-html.ios .topbar::after{
-  height:28px;
-  bottom:-28px;
-  background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
-}
-
-    /* ==========================
-   Anchor scroll fix (sticky header offset)
-   Makes #winners / #story land correctly
-========================== */
-
-/* Tell the browser to leave space when scrolling to anchors */
-html{
-  scroll-padding-top: calc(140px + env(safe-area-inset-top));
-}
-
-/* Extra safety per-section (works even if some browsers ignore scroll-padding) */
-#top,
-#draw,
-#winners,
-#contract,
-#story{
-  scroll-margin-top: calc(140px + env(safe-area-inset-top));
-}
-
-    @media (max-width:560px){
-  html{
-    scroll-padding-top: calc(160px + env(safe-area-inset-top));
-  }
-  #top,#draw,#winners,#contract,#story{
-    scroll-margin-top: calc(160px + env(safe-area-inset-top));
-  }
+  /* iOS can band with blur; keep it stable */
+  background: rgba(7,10,15,.95);
 }
 </style>
 </head>
