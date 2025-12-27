@@ -600,6 +600,34 @@ html.ios .topbar::after{
   bottom:-28px;
   background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
 }
+
+    /* ==========================
+   Anchor scroll fix (sticky header offset)
+   Makes #winners / #story land correctly
+========================== */
+
+/* Tell the browser to leave space when scrolling to anchors */
+html{
+  scroll-padding-top: calc(140px + env(safe-area-inset-top));
+}
+
+/* Extra safety per-section (works even if some browsers ignore scroll-padding) */
+#top,
+#draw,
+#winners,
+#contract,
+#story{
+  scroll-margin-top: calc(140px + env(safe-area-inset-top));
+}
+
+    @media (max-width:560px){
+  html{
+    scroll-padding-top: calc(160px + env(safe-area-inset-top));
+  }
+  #top,#draw,#winners,#contract,#story{
+    scroll-margin-top: calc(160px + env(safe-area-inset-top));
+  }
+}
 </style>
 </head>
 
