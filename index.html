@@ -31,16 +31,17 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 html{scroll-behavior:smooth}
+
 body{
   margin:0;
   font-family:var(--sans);
   color:var(--text);
-  background: var(--bg);           /* solid base */
+  background: var(--bg);
   background-color: var(--bg);
   overflow-x:hidden;
 }
 
-/* put the gradients on a fixed layer so they DON'T scroll (removes the “bands”) */
+/* gradients on fixed layer so they DON'T scroll (removes “bands”) */
 body::before{
   content:"";
   position:fixed;
@@ -57,24 +58,23 @@ body::before{
 .wrapInner{padding-top:14px}
 
 /* ==========================
-   STICKY TOPBAR (single source of truth)
-   Fixes iOS “seam” / banding + hard cutoff
+   STICKY TOPBAR (single truth)
 ========================== */
 .topbar{
   position:sticky;
   top:0;
   z-index:9999;
 
-  /* iOS safe-area */
+  /* ✅ critical: allow dropdown to escape */
+  overflow: visible;
+
   padding: calc(10px + env(safe-area-inset-top)) 0 10px;
 
-  /* stable glass layer */
   background: rgba(7,10,15,.86);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255,255,255,.08);
 
-  /* iOS compositing + stacking stability */
   isolation:isolate;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -83,7 +83,7 @@ body::before{
   transition: background .18s ease, padding .18s ease, border-color .18s ease;
 }
 
-/* gradients live on their own layer so they don’t “cut” */
+/* gradients on own layer */
 .topbar::before{
   content:"";
   position:absolute;
@@ -96,7 +96,7 @@ body::before{
     linear-gradient(180deg, rgba(7,10,15,.88), rgba(7,10,15,.62));
 }
 
-/* smooth “tail” under header so it flows into dark content */
+/* smooth tail under header */
 .topbar::after{
   content:"";
   position:absolute;
@@ -113,11 +113,14 @@ body::before{
 }
 
 /* ==========================
-   HEADER GRID (single truth, no duplicates)
+   HEADER GRID
 ========================== */
 header.siteHeader{
-  position:relative; /* stacking context for dropdown */
+  position:relative;
   z-index:50;
+
+  /* ✅ critical: allow dropdown to escape */
+  overflow: visible;
 
   display:grid;
   grid-template-columns: 1fr auto;
@@ -127,7 +130,6 @@ header.siteHeader{
   gap:12px;
   align-items:center;
 
-  /* tight = less “wasted” space */
   padding: 6px 0 6px;
 }
 
@@ -170,7 +172,7 @@ header.siteHeader{
   -webkit-tap-highlight-color:transparent;
   white-space:nowrap;
   user-select:none;
-  border-bottom:none; /* prevent underline rule from global a{} */
+  border-bottom:none;
 }
 .btn:active{transform:translateY(1px)}
 .btn:hover{background:rgba(255,255,255,.06)}
@@ -190,13 +192,16 @@ header.siteHeader{
 }
 
 /* ==========================
-   MENU (always on top)
+   MENU (fixes clipping)
 ========================== */
 .menuWrap{ position:relative; z-index:20000; }
 .menu{
   position:absolute;
   right:0;
-  top:54px;
+
+  /* ✅ opens below button reliably */
+  top: calc(100% + 8px);
+
   width:min(300px, 88vw);
   border:1px solid var(--stroke);
   background:rgba(10,12,18,.94);
@@ -205,6 +210,9 @@ header.siteHeader{
   padding:10px;
   display:none;
   z-index:30000;
+
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 .menu.open{display:block}
 .menu a{
@@ -226,7 +234,7 @@ header.siteHeader{
 .menuHr{height:1px;background:rgba(255,255,255,.08);margin:10px 2px}
 
 /* ==========================
-   WINNER BANNER (single definition)
+   WINNER BANNER
 ========================== */
 header.siteHeader .winnerBanner{
   grid-area:banner;
@@ -251,8 +259,6 @@ header.siteHeader .winnerBanner{
   justify-content:space-between;
   gap:10px;
 }
-
-/* keep glows behind clickable content */
 header.siteHeader .winnerBanner::before{
   content:"";
   position:absolute;
@@ -340,7 +346,6 @@ header.siteHeader .winnerBanner > *{ position:relative; z-index:1; }
   white-space:nowrap;
 }
 
-/* dim header while scrolling (optional) */
 .siteHeader.isScrolling{ opacity:.95; transition: opacity .22s ease; }
 
 /* ==========================
@@ -563,54 +568,32 @@ aside.card{ max-height: 560px; display:flex; flex-direction:column; }
   header.siteHeader .winnerBanner{ padding:11px; }
   .wbWallet{max-width:72vw}
   .wbRight{display:none}
+
+  .menu{ top: calc(100% + 10px); }
 }
 
-    /* ==========================
-   iOS / in-app browser banding fix
-   (SAFE: does not change layout)
+/* ==========================
+   iOS / in-app stability
 ========================== */
+.topbar{ contain: paint; }
 
-/* keep the topbar in its own paint layer */
-.topbar{
-  contain: paint;
-}
-
-/* iOS: blur + gradients often cause 2–3 “bands” while scrolling.
-   We keep the look, but stabilize compositing. */
 html.ios .topbar{
-  /* stop iOS from re-rasterizing blur each scroll frame */
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-
-  /* keep a strong glass base so it still looks premium */
-  background: rgba(7,10,15,.92) !important;
-}
-
-/* keep your gradients, but render them more consistently */
-html.ios .topbar::before{
-  opacity: .70;
-}
-
-/* make the “tail” longer so the transition never hard-cuts */
-html.ios .topbar::after{
-  height: 28px;
-  bottom: -28px;
-  background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
-}
-
-    html.ios .topbar{
-  /* iOS Safari is the main culprit for banding with blur + transparency */
   background: rgba(7,10,15,.95);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 
 html.ios .topbar::before{
-  /* simplify the gradient layer for iOS so it doesn’t “step” */
   background:
     radial-gradient(900px 240px at 18% 0%, rgba(52,211,153,.08), transparent 60%),
     radial-gradient(900px 240px at 82% 0%, rgba(124,58,237,.08), transparent 60%),
     linear-gradient(180deg, rgba(7,10,15,.96), rgba(7,10,15,.78));
+}
+
+html.ios .topbar::after{
+  height: 28px;
+  bottom: -28px;
+  background: linear-gradient(180deg, rgba(7,10,15,.62), rgba(7,10,15,0));
 }
 </style>
 </head>
